@@ -120,6 +120,35 @@ body.page {
   cursor: grab;
 }
 
+.fab-button {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: none;
+  background: #4c7dff;
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  box-shadow: 0 16px 30px rgba(76, 125, 255, 0.35);
+  z-index: 1055;
+}
+
+.fab-button:hover,
+.fab-button:focus-visible {
+  background: #3c6df2;
+  box-shadow: 0 18px 32px rgba(76, 125, 255, 0.45);
+}
+
+.fab-button:focus-visible {
+  outline: 3px solid rgba(76, 125, 255, 0.35);
+  outline-offset: 3px;
+}
+
 @media (max-width: 768px) {
   .month-selector {
     width: 100%;
@@ -127,5 +156,91 @@ body.page {
 
   .month-selector select {
     width: 100%;
+  }
+
+  .table thead {
+    display: none;
+  }
+
+  .table tbody tr {
+    display: block;
+    background: #ffffff;
+    border: 1px solid #e1e6f5;
+    border-radius: 12px;
+    padding: 10px 14px;
+    margin-bottom: 12px;
+    box-shadow: 0 10px 20px rgba(30, 31, 36, 0.08);
+  }
+
+  .table tbody td {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 6px 0;
+    border-bottom: 1px dashed #e8ecf6;
+    text-align: left;
+  }
+
+  .table tbody td:last-child {
+    border-bottom: 0;
+  }
+
+  .table tbody td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: #5b6274;
+  }
+
+  #purchaseTable td:nth-child(1)::before {
+    content: "Descrição";
+  }
+
+  #purchaseTable td:nth-child(2)::before {
+    content: "Cartão";
+  }
+
+  #purchaseTable td:nth-child(3)::before {
+    content: "Parcela";
+  }
+
+  #purchaseTable td:nth-child(4)::before {
+    content: "Vencimento";
+  }
+
+  #purchaseTable td:nth-child(5)::before {
+    content: "Valor";
+  }
+
+  #purchaseTable td:nth-child(6)::before {
+    content: "Ações";
+  }
+
+  #recurringTable td:nth-child(1)::before {
+    content: "Pago";
+  }
+
+  #recurringTable td:nth-child(2)::before {
+    content: "Descrição";
+  }
+
+  #recurringTable td:nth-child(3)::before {
+    content: "Vencimento";
+  }
+
+  #recurringTable td:nth-child(4)::before {
+    content: "Valor";
+  }
+
+  #recurringTable td:nth-child(5)::before {
+    content: "Ações";
+  }
+
+  .table tbody td.text-end {
+    text-align: left !important;
+  }
+
+  .skeleton-row td {
+    display: block;
+    border-bottom: 0;
   }
 }
