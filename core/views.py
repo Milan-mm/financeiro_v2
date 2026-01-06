@@ -38,11 +38,15 @@ def _add_months(base_date, months):
     return date(year, month, day)
 
 
-def _build_month_data(year, month):
+def _build_month_data(user, year, month):
     month_start = date(year, month, 1)
     month_end = date(year, month, monthrange(year, month)[1])
 
-    card_purchases = CardPurchase.objects.select_related("cartao").order_by("primeiro_vencimento")
+    card_purchases = (
+        CardPurchase.objects.select_related("cartao")
+        .filter(user=user)
+        .order_by("primeiro_vencimento")
+    )
     purchases = []
     for purchase in card_purchases:
         diff = (year - purchase.primeiro_vencimento.year) * 12 + (month - purchase.primeiro_vencimento.month)
@@ -64,7 +68,7 @@ def _build_month_data(year, month):
             )
 
     recurring_items = []
-    recurring_queryset = RecurringExpense.objects.filter(ativo=True).order_by("dia_vencimento")
+    recurring_queryset = RecurringExpense.objects.filter(user=user, ativo=True).order_by("dia_vencimento")
     recurring_payments = RecurringPayment.objects.filter(
         expense__in=recurring_queryset,
         year=year,
@@ -98,7 +102,7 @@ def _build_month_data(year, month):
     total_month = total_card + total_recurring
 
     cards = []
-    for card in Card.objects.filter(ativo=True).order_by("nome"):
+    for card in Card.objects.filter(user=user, ativo=True).order_by("nome"):
         total_mes = sum(item["valor_parcela"] for item in purchases if item["cartao_id"] == card.id)
         cards.append(
             {
@@ -137,6 +141,7 @@ def dashboard(request):
 
     card_form = CardForm(prefix="card")
     purchase_form = CardPurchaseForm(prefix="purchase")
+    purchase_form.fields["cartao"].queryset = Card.objects.filter(user=request.user)
     recurring_form = RecurringExpenseForm(prefix="recurring")
 
     if request.method == "POST":
@@ -144,23 +149,27 @@ def dashboard(request):
         if form_type == "card":
             card_form = CardForm(request.POST, prefix="card")
             if card_form.is_valid():
+                card_form.instance.user = request.user
                 card_form.save()
                 messages.success(request, "Cartão cadastrado com sucesso.")
                 return redirect("dashboard")
         elif form_type == "purchase":
             purchase_form = CardPurchaseForm(request.POST, prefix="purchase")
+            purchase_form.fields["cartao"].queryset = Card.objects.filter(user=request.user)
             if purchase_form.is_valid():
+                purchase_form.instance.user = request.user
                 purchase_form.save()
                 messages.success(request, "Compra lançada com sucesso.")
                 return redirect("dashboard")
         elif form_type == "recurring":
             recurring_form = RecurringExpenseForm(request.POST, prefix="recurring")
             if recurring_form.is_valid():
+                recurring_form.instance.user = request.user
                 recurring_form.save()
                 messages.success(request, "Conta recorrente cadastrada com sucesso.")
                 return redirect("dashboard")
 
-    month_data = _build_month_data(year, month)
+    month_data = _build_month_data(request.user, year, month)
 
     previous_month = _add_months(month_start, -1).strftime("%Y-%m")
     next_month = _add_months(month_start, 1).strftime("%Y-%m")
@@ -191,7 +200,7 @@ def month_data_api(request):
     except (TypeError, ValueError):
         return JsonResponse({"error": "Ano e mês inválidos."}, status=400)
 
-    data = _build_month_data(year, month)
+    data = _build_month_data(request.user, year, month)
     response = {
         "year": year,
         "month": month,
@@ -217,7 +226,9 @@ def card_purchase_create_api(request):
     if "cartao_id" in payload:
         payload["cartao"] = payload.pop("cartao_id")
     form = CardPurchaseForm(payload)
+    form.fields["cartao"].queryset = Card.objects.filter(user=request.user)
     if form.is_valid():
+        form.instance.user = request.user
         purchase = form.save()
         return JsonResponse({"id": purchase.id}, status=201)
     return JsonResponse({"error": "Dados inválidos.", "details": form.errors}, status=400)
@@ -226,7 +237,7 @@ def card_purchase_create_api(request):
 @login_required
 @require_http_methods(["PATCH", "DELETE"])
 def card_purchase_detail_api(request, purchase_id):
-    purchase = get_object_or_404(CardPurchase, pk=purchase_id)
+    purchase = get_object_or_404(CardPurchase, pk=purchase_id, user=request.user)
     if request.method == "DELETE":
         purchase.delete()
         return JsonResponse({"deleted": True})
@@ -244,6 +255,7 @@ def card_purchase_detail_api(request, purchase_id):
     }
     data.update(payload)
     form = CardPurchaseForm(data, instance=purchase)
+    form.fields["cartao"].queryset = Card.objects.filter(user=request.user)
     if form.is_valid():
         form.save()
         return JsonResponse({"updated": True})
@@ -256,6 +268,7 @@ def recurring_expense_create_api(request):
     payload = _json_body(request)
     form = RecurringExpenseForm(payload)
     if form.is_valid():
+        form.instance.user = request.user
         expense = form.save()
         return JsonResponse({"id": expense.id}, status=201)
     return JsonResponse({"error": "Dados inválidos.", "details": form.errors}, status=400)
@@ -264,7 +277,7 @@ def recurring_expense_create_api(request):
 @login_required
 @require_http_methods(["PATCH", "DELETE"])
 def recurring_expense_detail_api(request, expense_id):
-    expense = get_object_or_404(RecurringExpense, pk=expense_id)
+    expense = get_object_or_404(RecurringExpense, pk=expense_id, user=request.user)
     if request.method == "DELETE":
         expense.delete()
         return JsonResponse({"deleted": True})
@@ -300,7 +313,7 @@ def recurring_payment_toggle_api(request):
     if month < 1 or month > 12:
         return JsonResponse({"error": "Mês inválido."}, status=400)
 
-    expense = get_object_or_404(RecurringExpense, pk=expense_id)
+    expense = get_object_or_404(RecurringExpense, pk=expense_id, user=request.user)
     payment, created = RecurringPayment.objects.get_or_create(
         expense=expense,
         year=year,
