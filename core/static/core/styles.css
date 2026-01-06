@@ -1,0 +1,131 @@
+:root {
+  color-scheme: light;
+  font-family: "Inter", "Segoe UI", sans-serif;
+  background: #f5f6fb;
+  color: #1e1f24;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body.page {
+  margin: 0;
+  background: #f5f6fb;
+}
+
+.bg-soft {
+  background: #f5f6fb;
+}
+
+.login-shell {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+}
+
+.month-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.card-dropzone {
+  border: 1px dashed #b6c1e2;
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.card-dropzone.drag-over {
+  background: #e9efff;
+  border-color: #4c7dff;
+}
+
+.card-dropzone .meta {
+  display: flex;
+  flex-direction: column;
+}
+
+.card-dropzone .value {
+  font-weight: 700;
+}
+
+.table td,
+.table th {
+  vertical-align: middle;
+}
+
+.editable-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.editable-field .edit-input {
+  display: none;
+}
+
+.editable-field.is-editing .view-value {
+  display: none;
+}
+
+.editable-field.is-editing .edit-input {
+  display: block;
+}
+
+.row-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.skeleton-line {
+  height: 12px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #e8ecf6 25%, #f4f6fb 50%, #e8ecf6 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.skeleton-row td {
+  padding: 18px 12px;
+}
+
+#purchaseEmpty,
+#recurringEmpty {
+  display: none;
+}
+
+.toast-container .toast {
+  min-width: 260px;
+}
+
+.drag-handle {
+  cursor: grab;
+}
+
+@media (max-width: 768px) {
+  .month-selector {
+    width: 100%;
+  }
+
+  .month-selector select {
+    width: 100%;
+  }
+}

@@ -1,0 +1,126 @@
+<div class="modal fade" id="purchaseModal" tabindex="-1" aria-labelledby="purchaseModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="purchaseModalLabel">Nova compra no cartão</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        <form id="purchaseForm" class="needs-validation" novalidate>
+          <div class="mb-3">
+            <label for="purchaseCard" class="form-label">Cartão</label>
+            <select class="form-select" id="purchaseCard" required></select>
+            <div class="invalid-feedback">Selecione um cartão.</div>
+          </div>
+          <div class="mb-3">
+            <label for="purchaseDescription" class="form-label">Descrição</label>
+            <input
+              type="text"
+              class="form-control"
+              id="purchaseDescription"
+              placeholder="Ex.: Mercado"
+              required
+            />
+            <div class="invalid-feedback">Informe a descrição.</div>
+          </div>
+          <div class="row g-3">
+            <div class="col-sm-6">
+              <label for="purchaseTotal" class="form-label">Valor total</label>
+              <input type="number" step="0.01" class="form-control" id="purchaseTotal" required />
+              <div class="invalid-feedback">Informe o valor.</div>
+            </div>
+            <div class="col-sm-6">
+              <label for="purchaseInstallments" class="form-label">Parcelas</label>
+              <input type="number" min="1" class="form-control" id="purchaseInstallments" value="1" required />
+              <div class="invalid-feedback">Informe o número de parcelas.</div>
+            </div>
+          </div>
+          <div class="mt-3">
+            <label for="purchaseFirstDue" class="form-label">Primeiro vencimento</label>
+            <input type="date" class="form-control" id="purchaseFirstDue" required />
+            <div class="invalid-feedback">Informe a data do primeiro vencimento.</div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+        <button type="submit" form="purchaseForm" class="btn btn-primary" data-loading-text="Salvando...">
+          Salvar compra
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="recurringModal" tabindex="-1" aria-labelledby="recurringModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="recurringModalLabel">Nova recorrência</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        <form id="recurringForm" class="needs-validation" novalidate>
+          <div class="mb-3">
+            <label for="recurringDescription" class="form-label">Descrição</label>
+            <input type="text" class="form-control" id="recurringDescription" required />
+            <div class="invalid-feedback">Informe a descrição.</div>
+          </div>
+          <div class="row g-3">
+            <div class="col-sm-6">
+              <label for="recurringValue" class="form-label">Valor</label>
+              <input type="number" step="0.01" class="form-control" id="recurringValue" required />
+              <div class="invalid-feedback">Informe o valor.</div>
+            </div>
+            <div class="col-sm-6">
+              <label for="recurringDay" class="form-label">Dia do mês</label>
+              <input type="number" min="1" max="31" class="form-control" id="recurringDay" required />
+              <div class="invalid-feedback">Informe o dia de vencimento.</div>
+            </div>
+          </div>
+          <div class="row g-3 mt-1">
+            <div class="col-sm-6">
+              <label for="recurringStart" class="form-label">Início</label>
+              <input type="date" class="form-control" id="recurringStart" required />
+              <div class="invalid-feedback">Informe a data de início.</div>
+            </div>
+            <div class="col-sm-6">
+              <label for="recurringEnd" class="form-label">Fim (opcional)</label>
+              <input type="date" class="form-control" id="recurringEnd" />
+            </div>
+          </div>
+          <div class="form-check form-switch mt-3">
+            <input class="form-check-input" type="checkbox" id="recurringActive" checked />
+            <label class="form-check-label" for="recurringActive">Ativo</label>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+        <button type="submit" form="recurringForm" class="btn btn-primary" data-loading-text="Salvando...">
+          Salvar recorrência
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="confirmDeleteLabel">Confirmar exclusão</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-0" id="confirmDeleteMessage">Tem certeza que deseja excluir este item?</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-danger" id="confirmDeleteButton" data-loading-text="Excluindo...">
+          Excluir
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
