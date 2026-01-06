@@ -14,6 +14,102 @@ body.page {
   background: #f5f6fb;
 }
 
+.dashboard-layout {
+  display: flex;
+}
+
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  width: 80px;
+  background: #111827;
+  color: #ffffff;
+  padding: 24px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  transition: width 0.3s ease;
+  z-index: 1030;
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 700;
+  font-size: 1rem;
+  white-space: nowrap;
+}
+
+.sidebar-brand span {
+  opacity: 0;
+  transform: translateX(-8px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.sidebar:hover {
+  width: 250px;
+}
+
+.sidebar:hover .sidebar-brand span {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.sidebar .nav-link {
+  color: #d1d5db;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-radius: 10px;
+  padding: 10px 12px;
+  white-space: nowrap;
+}
+
+.sidebar .nav-link i {
+  font-size: 1.2rem;
+}
+
+.sidebar .nav-link span {
+  opacity: 0;
+  transform: translateX(-8px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.sidebar:hover .nav-link span {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.sidebar .nav-link:hover,
+.sidebar .nav-link.active {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.main-content {
+  margin-left: 80px;
+  width: 100%;
+  transition: margin-left 0.3s ease;
+}
+
+.sidebar:hover + .main-content {
+  margin-left: 250px;
+}
+
+.mobile-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 56px;
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+  z-index: 1040;
+}
+
 .bg-soft {
   background: #f5f6fb;
 }
@@ -135,7 +231,7 @@ body.page {
   justify-content: center;
   font-size: 22px;
   box-shadow: 0 16px 30px rgba(76, 125, 255, 0.35);
-  z-index: 1055;
+  z-index: 1060;
 }
 
 .fab-button:hover,
@@ -150,6 +246,15 @@ body.page {
 }
 
 @media (max-width: 768px) {
+  .sidebar {
+    display: none;
+  }
+
+  .main-content {
+    margin-left: 0;
+    padding-top: 56px;
+  }
+
   .month-selector {
     width: 100%;
   }

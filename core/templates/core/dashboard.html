@@ -18,57 +18,107 @@
     <link rel="stylesheet" href="{% static 'core/styles.css' %}" />
   </head>
   <body class="page bg-soft" data-month="{{ month_start|date:'m' }}" data-year="{{ month_start|date:'Y' }}">
-    <div class="container-xxl py-4">
-      <header class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3 mb-4">
-        <div>
-          <p class="text-uppercase text-muted fw-semibold small mb-1">Painel mensal</p>
-          <h1 class="h3 fw-bold mb-1">Dashboard financeiro do casal</h1>
-          <p class="text-muted mb-0">Acompanhe compras, faturas e recorrências sem sair desta tela.</p>
+    <div class="dashboard-layout">
+      <nav class="sidebar">
+        <div class="sidebar-brand">
+          <i class="bi bi-graph-up-arrow"></i>
+          <span>Financeiro</span>
         </div>
-        <div class="d-flex flex-wrap align-items-center gap-2">
-          <div class="month-selector">
-            <label for="monthSelect" class="form-label mb-0">Mês</label>
-            <select id="monthSelect" class="form-select form-select-sm" aria-label="Selecionar mês"></select>
-          </div>
-          <div class="month-selector">
-            <label for="yearSelect" class="form-label mb-0">Ano</label>
-            <select id="yearSelect" class="form-select form-select-sm" aria-label="Selecionar ano"></select>
-          </div>
-          <button class="btn btn-outline-primary btn-sm" id="refreshButton" type="button">
-            Atualizar
-          </button>
-        </div>
-      </header>
+        <ul class="nav flex-column">
+          <li class="nav-item">
+            <a class="nav-link active" href="#">
+              <i class="bi bi-house"></i>
+              <span>Home</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#purchaseTable">
+              <i class="bi bi-credit-card"></i>
+              <span>Cartões</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#recurringTable">
+              <i class="bi bi-arrow-repeat"></i>
+              <span>Recorrentes</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#">
+              <i class="bi bi-gear"></i>
+              <span>Configurações</span>
+            </a>
+          </li>
+        </ul>
+      </nav>
 
-      <section class="row g-3 mb-4" id="summaryCards">
-        <div class="col-md-4">
-          <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-              <p class="text-muted small mb-1">Total do mês</p>
-              <h2 class="h4 fw-bold mb-0" id="totalMonth">R$ 0,00</h2>
-              <p class="text-muted small mb-0 mt-2">Somatório de compras e recorrências.</p>
+      <main class="main-content">
+        <header class="mobile-header d-flex d-md-none align-items-center justify-content-between px-3">
+          <button
+            class="btn btn-link text-dark fs-4"
+            type="button"
+            data-bs-toggle="offcanvas"
+            data-bs-target="#mobileSidebar"
+            aria-controls="mobileSidebar"
+            aria-label="Abrir menu"
+          >
+            <i class="bi bi-list"></i>
+          </button>
+          <span class="fw-semibold">Dashboard</span>
+          <span></span>
+        </header>
+
+        <div class="container-xxl py-4">
+          <header class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3 mb-4">
+            <div>
+              <p class="text-uppercase text-muted fw-semibold small mb-1">Painel mensal</p>
+              <h1 class="h3 fw-bold mb-1">Dashboard financeiro do casal</h1>
+              <p class="text-muted mb-0">Acompanhe compras, faturas e recorrências sem sair desta tela.</p>
             </div>
-          </div>
-        </div>
-        <div class="col-md-4">
-          <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-              <p class="text-muted small mb-1">Cartões no mês</p>
-              <h2 class="h4 fw-bold mb-0" id="totalCard">R$ 0,00</h2>
-              <p class="text-muted small mb-0 mt-2">Faturas em andamento.</p>
+            <div class="d-flex flex-wrap align-items-center gap-2">
+              <div class="month-selector">
+                <label for="monthSelect" class="form-label mb-0">Mês</label>
+                <select id="monthSelect" class="form-select form-select-sm" aria-label="Selecionar mês"></select>
+              </div>
+              <div class="month-selector">
+                <label for="yearSelect" class="form-label mb-0">Ano</label>
+                <select id="yearSelect" class="form-select form-select-sm" aria-label="Selecionar ano"></select>
+              </div>
+              <button class="btn btn-outline-primary btn-sm" id="refreshButton" type="button">
+                Atualizar
+              </button>
             </div>
-          </div>
-        </div>
-        <div class="col-md-4">
-          <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-              <p class="text-muted small mb-1">Recorrentes</p>
-              <h2 class="h4 fw-bold mb-0" id="totalRecurring">R$ 0,00</h2>
-              <p class="text-muted small mb-0 mt-2">Contas fixas do casal.</p>
+          </header>
+
+          <section class="row g-3 mb-4" id="summaryCards">
+            <div class="col-md-4">
+              <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                  <p class="text-muted small mb-1">Total do mês</p>
+                  <h2 class="h4 fw-bold mb-0" id="totalMonth">R$ 0,00</h2>
+                  <p class="text-muted small mb-0 mt-2">Somatório de compras e recorrências.</p>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      </section>
+            <div class="col-md-4">
+              <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                  <p class="text-muted small mb-1">Cartões no mês</p>
+                  <h2 class="h4 fw-bold mb-0" id="totalCard">R$ 0,00</h2>
+                  <p class="text-muted small mb-0 mt-2">Faturas em andamento.</p>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                  <p class="text-muted small mb-1">Recorrentes</p>
+                  <h2 class="h4 fw-bold mb-0" id="totalRecurring">R$ 0,00</h2>
+                  <p class="text-muted small mb-0 mt-2">Contas fixas do casal.</p>
+                </div>
+              </div>
+            </div>
+          </section>
 
       <div class="row g-4">
         <div class="col-xl-8">
@@ -205,9 +255,46 @@
         </aside>
       </div>
 
-      <button class="fab-button" data-bs-toggle="modal" data-bs-target="#purchaseModal" aria-label="Adicionar compra">
-        <i class="bi bi-plus-lg" aria-hidden="true"></i>
-      </button>
+          <button class="fab-button" data-bs-toggle="modal" data-bs-target="#purchaseModal" aria-label="Adicionar compra">
+            <i class="bi bi-plus-lg" aria-hidden="true"></i>
+          </button>
+        </div>
+      </main>
+    </div>
+
+    <div class="offcanvas offcanvas-start" tabindex="-1" id="mobileSidebar" aria-labelledby="mobileSidebarLabel">
+      <div class="offcanvas-header">
+        <h5 class="offcanvas-title" id="mobileSidebarLabel">Menu</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Fechar"></button>
+      </div>
+      <div class="offcanvas-body">
+        <ul class="nav flex-column">
+          <li class="nav-item">
+            <a class="nav-link active" href="#">
+              <i class="bi bi-house"></i>
+              <span>Home</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#purchaseTable">
+              <i class="bi bi-credit-card"></i>
+              <span>Cartões</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#recurringTable">
+              <i class="bi bi-arrow-repeat"></i>
+              <span>Recorrentes</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#">
+              <i class="bi bi-gear"></i>
+              <span>Configurações</span>
+            </a>
+          </li>
+        </ul>
+      </div>
     </div>
 
     {% include "core/partials/_modals.html" %}
