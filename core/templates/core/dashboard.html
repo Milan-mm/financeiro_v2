@@ -1,0 +1,110 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+  <head>
+    <meta charset="utf-8" />
+    <title>Dashboard Financeiro</title>
+    <link rel="stylesheet" href="{% static 'core/styles.css' %}" />
+  </head>
+  <body class="page">
+    <header class="header">
+      <div>
+        <h1>Dashboard do Mês</h1>
+        <p>Referência: {{ month_start|date:"F Y" }}</p>
+      </div>
+      <nav class="month-nav">
+        <a href="?month={{ previous_month }}">← Mês anterior</a>
+        <a href="?month={{ next_month }}">Próximo mês →</a>
+      </nav>
+    </header>
+
+    {% if messages %}
+      <ul class="messages">
+        {% for message in messages %}
+          <li>{{ message }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+
+    <section class="summary">
+      <div>
+        <h2>Total Cartões</h2>
+        <p>R$ {{ total_card|floatformat:2 }}</p>
+      </div>
+      <div>
+        <h2>Contas Recorrentes</h2>
+        <p>R$ {{ total_recurring|floatformat:2 }}</p>
+      </div>
+      <div>
+        <h2>Gasto do mês</h2>
+        <p>R$ {{ total_month|floatformat:2 }}</p>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="panel">
+        <h2>Parcelas no Cartão</h2>
+        {% if installments %}
+          <ul>
+            {% for item in installments %}
+              <li>
+                <strong>{{ item.cartao }}</strong> - {{ item.descricao }}
+                <span>({{ item.parcela_atual }}/{{ item.parcelas }})</span>
+                <span>R$ {{ item.valor|floatformat:2 }}</span>
+                <em>Venc. {{ item.vencimento|date:"d/m" }}</em>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p>Nenhuma parcela neste mês.</p>
+        {% endif %}
+      </div>
+      <div class="panel">
+        <h2>Contas Recorrentes</h2>
+        {% if recurring_items %}
+          <ul>
+            {% for item in recurring_items %}
+              <li>
+                {{ item.descricao }}
+                <span>R$ {{ item.valor|floatformat:2 }}</span>
+                <em>Venc. {{ item.vencimento|date:"d/m" }}</em>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p>Nenhuma conta recorrente cadastrada.</p>
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="panel">
+        <h2>Novo cartão</h2>
+        <form method="post" class="form">
+          {% csrf_token %}
+          <input type="hidden" name="form_type" value="card" />
+          {{ card_form.as_p }}
+          <button type="submit">Salvar cartão</button>
+        </form>
+      </div>
+      <div class="panel">
+        <h2>Nova compra do mês</h2>
+        <form method="post" class="form">
+          {% csrf_token %}
+          <input type="hidden" name="form_type" value="purchase" />
+          {{ purchase_form.as_p }}
+          <button type="submit">Lançar compra</button>
+        </form>
+      </div>
+      <div class="panel">
+        <h2>Conta recorrente</h2>
+        <form method="post" class="form">
+          {% csrf_token %}
+          <input type="hidden" name="form_type" value="recurring" />
+          {{ recurring_form.as_p }}
+          <button type="submit">Salvar recorrência</button>
+        </form>
+      </div>
+    </section>
+  </body>
+</html>
