@@ -239,6 +239,17 @@ const createEditableCell = (value, inputType, inputValue, inputClass = "form-con
   return { wrapper, input, view };
 };
 
+const cardBadgeVariants = ["primary", "success", "info", "warning", "danger", "secondary", "dark"];
+
+const getCardBadgeVariant = (name) => {
+  if (!name) return cardBadgeVariants[0];
+  let hash = 0;
+  Array.from(name).forEach((char) => {
+    hash = (hash + char.charCodeAt(0)) % cardBadgeVariants.length;
+  });
+  return cardBadgeVariants[hash];
+};
+
 const renderPurchaseTable = () => {
   const data = applyPurchaseFilters(appState.data.purchases || []);
   elements.purchaseTableBody.innerHTML = "";
@@ -258,10 +269,28 @@ const renderPurchaseTable = () => {
     descriptionCell.appendChild(descriptionEditable.wrapper);
 
     const cardCell = document.createElement("td");
-    cardCell.innerHTML = `<span class="badge text-bg-light">${item.cartao_nome}</span>`;
+    const cardVariant = getCardBadgeVariant(item.cartao_nome);
+    cardCell.innerHTML = `<span class="badge text-bg-${cardVariant}">${item.cartao_nome}</span>`;
 
     const installmentCell = document.createElement("td");
-    installmentCell.textContent = `${item.parcela_atual}/${item.parcelas}`;
+    if (item.parcelas === 1) {
+      installmentCell.innerHTML = `
+        <span class="badge text-bg-success d-inline-flex align-items-center gap-1">
+          <i class="bi bi-check-circle-fill"></i>
+          À vista
+        </span>
+      `;
+    } else {
+      const progressValue = Math.round((item.parcela_atual / item.parcelas) * 100);
+      installmentCell.innerHTML = `
+        <div class="d-flex flex-column gap-1">
+          <span class="badge text-bg-warning text-dark align-self-start">${item.parcela_atual}/${item.parcelas}</span>
+          <div class="progress" style="height: 6px;">
+            <div class="progress-bar bg-warning" role="progressbar" style="width: ${progressValue}%"></div>
+          </div>
+        </div>
+      `;
+    }
 
     const dueCell = document.createElement("td");
     const dueEditable = createEditableCell(formatDate(item.primeiro_vencimento), "date", item.primeiro_vencimento);

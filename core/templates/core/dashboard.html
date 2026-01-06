@@ -11,6 +11,10 @@
       integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
       crossorigin="anonymous"
     />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"
+    />
     <link rel="stylesheet" href="{% static 'core/styles.css' %}" />
   </head>
   <body class="page bg-soft" data-month="{{ month_start|date:'m' }}" data-year="{{ month_start|date:'Y' }}">
@@ -73,14 +77,6 @@
               <div>
                 <h2 class="h5 fw-bold mb-1">Cartões e faturas do mês</h2>
                 <p class="text-muted small mb-0">Arraste uma compra para mudar o cartão.</p>
-              </div>
-              <div class="d-flex gap-2">
-                <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#purchaseModal" data-mode="single">
-                  Adicionar compra
-                </button>
-                <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#purchaseModal" data-mode="installments">
-                  Adicionar parcela
-                </button>
               </div>
             </div>
             <div class="card-body">
@@ -207,6 +203,10 @@
           </section>
         </aside>
       </div>
+
+      <button class="fab-button" data-bs-toggle="modal" data-bs-target="#purchaseModal" aria-label="Adicionar compra">
+        <i class="bi bi-plus-lg" aria-hidden="true"></i>
+      </button>
     </div>
 
     {% include "core/partials/_modals.html" %}
