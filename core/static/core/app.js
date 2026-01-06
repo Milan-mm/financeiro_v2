@@ -105,7 +105,7 @@ const formatDate = (dateStr) => {
 const setLoadingState = (isLoading) => {
   if (!isLoading) return;
   elements.purchaseTableBody.innerHTML = `<tr class="skeleton-row"><td colspan="6"><div class="skeleton-line"></div></td></tr>`;
-  elements.recurringTableBody.innerHTML = `<tr class="skeleton-row"><td colspan="4"><div class="skeleton-line"></div></td></tr>`;
+  elements.recurringTableBody.innerHTML = `<tr class="skeleton-row"><td colspan="5"><div class="skeleton-line"></div></td></tr>`;
 };
 
 const populateMonthSelectors = () => {
@@ -401,6 +401,16 @@ const renderRecurringTable = () => {
     const row = document.createElement("tr");
     row.dataset.recurringId = item.id;
 
+    const paidCell = document.createElement("td");
+    const paidWrapper = document.createElement("div");
+    paidWrapper.className = "form-check m-0 d-flex justify-content-center";
+    const paidCheckbox = document.createElement("input");
+    paidCheckbox.type = "checkbox";
+    paidCheckbox.className = "form-check-input";
+    paidCheckbox.checked = Boolean(item.is_paid);
+    paidWrapper.appendChild(paidCheckbox);
+    paidCell.appendChild(paidWrapper);
+
     const descriptionCell = document.createElement("td");
     const descriptionEditable = createEditableCell(item.descricao, "text", item.descricao);
     descriptionCell.appendChild(descriptionEditable.wrapper);
@@ -423,7 +433,39 @@ const renderRecurringTable = () => {
       </div>
     `;
 
-    row.append(descriptionCell, dueCell, valueCell, actionsCell);
+    const setPaidState = (isPaid) => {
+      row.classList.toggle("text-decoration-line-through", isPaid);
+      row.classList.toggle("text-muted", isPaid);
+    };
+
+    setPaidState(Boolean(item.is_paid));
+
+    paidCheckbox.addEventListener("change", async () => {
+      const previousValue = item.is_paid;
+      const nextValue = paidCheckbox.checked;
+      item.is_paid = nextValue;
+      setPaidState(nextValue);
+      try {
+        const response = await apiFetch("/api/recurring-payment-toggle/", {
+          method: "POST",
+          body: JSON.stringify({
+            expense_id: item.id,
+            year: appState.year,
+            month: appState.month,
+          }),
+        });
+        item.is_paid = Boolean(response.is_paid);
+        paidCheckbox.checked = item.is_paid;
+        setPaidState(item.is_paid);
+      } catch (error) {
+        item.is_paid = previousValue;
+        paidCheckbox.checked = previousValue;
+        setPaidState(previousValue);
+        showToast("Não foi possível atualizar o pagamento.", "danger");
+      }
+    });
+
+    row.append(paidCell, descriptionCell, dueCell, valueCell, actionsCell);
     elements.recurringTableBody.appendChild(row);
 
     const setEditing = (isEditing) => {

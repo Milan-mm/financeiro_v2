@@ -216,18 +216,22 @@ body.page {
   }
 
   #recurringTable td:nth-child(1)::before {
-    content: "Descrição";
+    content: "Pago";
   }
 
   #recurringTable td:nth-child(2)::before {
-    content: "Vencimento";
+    content: "Descrição";
   }
 
   #recurringTable td:nth-child(3)::before {
-    content: "Valor";
+    content: "Vencimento";
   }
 
   #recurringTable td:nth-child(4)::before {
+    content: "Valor";
+  }
+
+  #recurringTable td:nth-child(5)::before {
     content: "Ações";
   }
 
