@@ -2,7 +2,7 @@
   color-scheme: light;
   font-family: "Inter", "Segoe UI", sans-serif;
   background: #f5f6fb;
-  color: #222;
+  color: #1e1f24;
 }
 
 * {
@@ -11,110 +11,121 @@
 
 body.page {
   margin: 0;
-  padding: 32px;
   background: #f5f6fb;
 }
 
-.header {
+.bg-soft {
+  background: #f5f6fb;
+}
+
+.login-shell {
+  min-height: 100vh;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  justify-content: center;
+  padding: 32px 16px;
 }
 
-.month-nav a {
-  margin-left: 12px;
-  text-decoration: none;
-  color: #2f5ef3;
-}
-
-.card {
-  max-width: 420px;
-  margin: 64px auto;
-  padding: 32px;
-  background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 8px 20px rgba(32, 46, 72, 0.12);
-}
-
-.form {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.form label {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-weight: 500;
-}
-
-.form input,
-.form select {
-  padding: 8px 10px;
-  border-radius: 8px;
-  border: 1px solid #cdd5ea;
-}
-
-.form button {
-  padding: 10px 16px;
-  border: none;
-  border-radius: 8px;
-  background: #2f5ef3;
-  color: #fff;
-  cursor: pointer;
-  font-weight: 600;
-}
-
-.summary {
-  display: grid;
-  gap: 16px;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  margin-bottom: 24px;
-}
-
-.summary div {
-  background: #fff;
-  padding: 16px;
-  border-radius: 12px;
-  box-shadow: 0 6px 14px rgba(32, 46, 72, 0.08);
-}
-
-.grid {
-  display: grid;
-  gap: 16px;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  margin-bottom: 24px;
-}
-
-.panel {
-  background: #fff;
-  padding: 16px;
-  border-radius: 12px;
-  box-shadow: 0 6px 14px rgba(32, 46, 72, 0.08);
-}
-
-.panel ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.panel li {
+.month-selector {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid #eef1f7;
 }
 
-.messages {
-  list-style: none;
-  padding: 0;
-  margin: 16px 0;
-  color: #d21f3c;
+.card-dropzone {
+  border: 1px dashed #b6c1e2;
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.card-dropzone.drag-over {
+  background: #e9efff;
+  border-color: #4c7dff;
+}
+
+.card-dropzone .meta {
+  display: flex;
+  flex-direction: column;
+}
+
+.card-dropzone .value {
+  font-weight: 700;
+}
+
+.table td,
+.table th {
+  vertical-align: middle;
+}
+
+.editable-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.editable-field .edit-input {
+  display: none;
+}
+
+.editable-field.is-editing .view-value {
+  display: none;
+}
+
+.editable-field.is-editing .edit-input {
+  display: block;
+}
+
+.row-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.skeleton-line {
+  height: 12px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #e8ecf6 25%, #f4f6fb 50%, #e8ecf6 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.skeleton-row td {
+  padding: 18px 12px;
+}
+
+#purchaseEmpty,
+#recurringEmpty {
+  display: none;
+}
+
+.toast-container .toast {
+  min-width: 260px;
+}
+
+.drag-handle {
+  cursor: grab;
+}
+
+@media (max-width: 768px) {
+  .month-selector {
+    width: 100%;
+  }
+
+  .month-selector select {
+    width: 100%;
+  }
 }
