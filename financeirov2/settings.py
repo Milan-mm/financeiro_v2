@@ -18,6 +18,12 @@ from dotenv import load_dotenv
 
 ENVIRONMENT = os.getenv("DJANGO_ENV", "production").lower()
 
+# financeirov2/settings.py
+
+# ... (código anterior)
+
+ENVIRONMENT = os.getenv("DJANGO_ENV", "production").lower()
+
 if ENVIRONMENT == "development":
     env_file = BASE_DIR / ".env.development"
 
@@ -27,12 +33,18 @@ if ENVIRONMENT == "development":
     else:
         print("⚠️ .env.development não encontrado. Usando variáveis do sistema.")
 else:
-    # Em produção (Railway):
-    # NÃO tenta carregar .env.production
-    # Usa apenas variáveis do sistema
-    print("🚀 Produção (Railway): usando variáveis de ambiente do sistema")
+    # ALTERAÇÃO AQUI: Tenta carregar .env.production se existir (útil para testes locais de prod)
+    env_file = BASE_DIR / ".env.production"
+
+    if env_file.exists():
+        load_dotenv(env_file, encoding="utf-8")
+        print("✓ .env.production carregado (Modo Produção Local)")
+    else:
+        print("🚀 Produção (Railway): usando variáveis de ambiente do sistema")
 
 print("ENVIRONMENT =", ENVIRONMENT)
+
+# ... (restante do código)
 
 # ==============================================================================
 # 2. CONFIGURAÇÕES GERAIS
