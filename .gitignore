@@ -1,0 +1,87 @@
+# ==================================================
+# Python
+# ==================================================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# ==================================================
+# Virtualenv
+# ==================================================
+.env
+.env.*
+.venv/
+venv/
+ENV/
+env/
+
+# ==================================================
+# Django
+# ==================================================
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Migrations locais (opcional – remova se quiser versionar)
+ */migrations/__pycache__/
+ */migrations/*.pyc
+
+# ==================================================
+# Static / Media (não versionar quando usa S3)
+# ==================================================
+staticfiles/
+staticfiles_collected_s3/
+media/
+media_local/
+
+# ==================================================
+# Node / Frontend (caso exista depois)
+# ==================================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ==================================================
+# IDEs / Editores
+# ==================================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*.tmp
+
+# ==================================================
+# OS
+# ==================================================
+.DS_Store
+Thumbs.db
+
+# ==================================================
+# Secrets / Credenciais
+# ==================================================
+*.pem
+*.key
+*.crt
+*.env
+.env.production
+.env.development
+
+# ==================================================
+# Test / Coverage
+# ==================================================
+.coverage
+htmlcov/
+.pytest_cache/
+
+# ==================================================
+# Docker (se usar depois)
+# ==================================================
+docker-compose.override.yml
