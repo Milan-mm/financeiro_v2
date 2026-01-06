@@ -38,6 +38,10 @@ const monthNames = [
 ];
 
 const elements = {};
+const chartState = {
+  line: null,
+  doughnut: null,
+};
 
 const getCookie = (name) => {
   const value = `; ${document.cookie}`;
@@ -105,7 +109,7 @@ const formatDate = (dateStr) => {
 const setLoadingState = (isLoading) => {
   if (!isLoading) return;
   elements.purchaseTableBody.innerHTML = `<tr class="skeleton-row"><td colspan="6"><div class="skeleton-line"></div></td></tr>`;
-  elements.recurringTableBody.innerHTML = `<tr class="skeleton-row"><td colspan="4"><div class="skeleton-line"></div></td></tr>`;
+  elements.recurringTableBody.innerHTML = `<tr class="skeleton-row"><td colspan="5"><div class="skeleton-line"></div></td></tr>`;
 };
 
 const populateMonthSelectors = () => {
@@ -152,6 +156,109 @@ const renderSummary = () => {
   elements.totalMonth.textContent = formatCurrency(totals.total_month || 0);
   elements.totalCard.textContent = formatCurrency(totals.total_card || 0);
   elements.totalRecurring.textContent = formatCurrency(totals.total_recurring || 0);
+};
+
+const renderCharts = () => {
+  const lineCanvas = document.getElementById("lineChart");
+  const doughnutCanvas = document.getElementById("doughnutChart");
+  if (!lineCanvas && !doughnutCanvas) return;
+  if (typeof Chart === "undefined") return;
+
+  const purchases = appState.data.purchases || [];
+
+  if (doughnutCanvas) {
+    const totalsByCard = new Map();
+    purchases.forEach((item) => {
+      const key = item.cartao_nome || "Sem cartão";
+      const current = totalsByCard.get(key) || 0;
+      totalsByCard.set(key, current + Number(item.valor_parcela || 0));
+    });
+    const cardLabels = appState.data.cards.length
+      ? appState.data.cards.map((card) => card.nome)
+      : Array.from(totalsByCard.keys());
+    const dataValues = cardLabels.map((label) => totalsByCard.get(label) || 0);
+    const colors = [
+      "#4c7dff",
+      "#22c55e",
+      "#f97316",
+      "#06b6d4",
+      "#a855f7",
+      "#f43f5e",
+      "#64748b",
+    ];
+    chartState.doughnut?.destroy();
+    chartState.doughnut = new Chart(doughnutCanvas, {
+      type: "doughnut",
+      data: {
+        labels: cardLabels,
+        datasets: [
+          {
+            data: dataValues,
+            backgroundColor: cardLabels.map((_, index) => colors[index % colors.length]),
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: {
+            position: "bottom",
+          },
+        },
+      },
+    });
+  }
+
+  if (lineCanvas) {
+    const daysInMonth = new Date(appState.year, appState.month, 0).getDate();
+    const dailyTotals = Array(daysInMonth).fill(0);
+    purchases.forEach((item) => {
+      const dueDate = new Date(item.vencimento);
+      const dayIndex = dueDate.getDate() - 1;
+      if (dayIndex >= 0 && dayIndex < dailyTotals.length) {
+        dailyTotals[dayIndex] += Number(item.valor_parcela || 0);
+      }
+    });
+    const cumulativeTotals = [];
+    dailyTotals.reduce((acc, value) => {
+      const nextValue = acc + value;
+      cumulativeTotals.push(nextValue);
+      return nextValue;
+    }, 0);
+
+    chartState.line?.destroy();
+    chartState.line = new Chart(lineCanvas, {
+      type: "line",
+      data: {
+        labels: Array.from({ length: daysInMonth }, (_, index) => `${index + 1}`),
+        datasets: [
+          {
+            label: "Gasto acumulado",
+            data: cumulativeTotals,
+            borderColor: "#4c7dff",
+            backgroundColor: "rgba(76, 125, 255, 0.2)",
+            tension: 0.3,
+            fill: true,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: {
+            display: false,
+          },
+        },
+        scales: {
+          x: {
+            grid: {
+              display: false,
+            },
+          },
+        },
+      },
+    });
+  }
 };
 
 const renderCards = () => {
@@ -239,6 +346,17 @@ const createEditableCell = (value, inputType, inputValue, inputClass = "form-con
   return { wrapper, input, view };
 };
 
+const cardBadgeVariants = ["primary", "success", "info", "warning", "danger", "secondary", "dark"];
+
+const getCardBadgeVariant = (name) => {
+  if (!name) return cardBadgeVariants[0];
+  let hash = 0;
+  Array.from(name).forEach((char) => {
+    hash = (hash + char.charCodeAt(0)) % cardBadgeVariants.length;
+  });
+  return cardBadgeVariants[hash];
+};
+
 const renderPurchaseTable = () => {
   const data = applyPurchaseFilters(appState.data.purchases || []);
   elements.purchaseTableBody.innerHTML = "";
@@ -258,10 +376,28 @@ const renderPurchaseTable = () => {
     descriptionCell.appendChild(descriptionEditable.wrapper);
 
     const cardCell = document.createElement("td");
-    cardCell.innerHTML = `<span class="badge text-bg-light">${item.cartao_nome}</span>`;
+    const cardVariant = getCardBadgeVariant(item.cartao_nome);
+    cardCell.innerHTML = `<span class="badge text-bg-${cardVariant}">${item.cartao_nome}</span>`;
 
     const installmentCell = document.createElement("td");
-    installmentCell.textContent = `${item.parcela_atual}/${item.parcelas}`;
+    if (item.parcelas === 1) {
+      installmentCell.innerHTML = `
+        <span class="badge text-bg-success d-inline-flex align-items-center gap-1">
+          <i class="bi bi-check-circle-fill"></i>
+          À vista
+        </span>
+      `;
+    } else {
+      const progressValue = Math.round((item.parcela_atual / item.parcelas) * 100);
+      installmentCell.innerHTML = `
+        <div class="d-flex flex-column gap-1">
+          <span class="badge text-bg-warning text-dark align-self-start">${item.parcela_atual}/${item.parcelas}</span>
+          <div class="progress" style="height: 6px;">
+            <div class="progress-bar bg-warning" role="progressbar" style="width: ${progressValue}%"></div>
+          </div>
+        </div>
+      `;
+    }
 
     const dueCell = document.createElement("td");
     const dueEditable = createEditableCell(formatDate(item.primeiro_vencimento), "date", item.primeiro_vencimento);
@@ -372,6 +508,16 @@ const renderRecurringTable = () => {
     const row = document.createElement("tr");
     row.dataset.recurringId = item.id;
 
+    const paidCell = document.createElement("td");
+    const paidWrapper = document.createElement("div");
+    paidWrapper.className = "form-check m-0 d-flex justify-content-center";
+    const paidCheckbox = document.createElement("input");
+    paidCheckbox.type = "checkbox";
+    paidCheckbox.className = "form-check-input";
+    paidCheckbox.checked = Boolean(item.is_paid);
+    paidWrapper.appendChild(paidCheckbox);
+    paidCell.appendChild(paidWrapper);
+
     const descriptionCell = document.createElement("td");
     const descriptionEditable = createEditableCell(item.descricao, "text", item.descricao);
     descriptionCell.appendChild(descriptionEditable.wrapper);
@@ -394,7 +540,39 @@ const renderRecurringTable = () => {
       </div>
     `;
 
-    row.append(descriptionCell, dueCell, valueCell, actionsCell);
+    const setPaidState = (isPaid) => {
+      row.classList.toggle("text-decoration-line-through", isPaid);
+      row.classList.toggle("text-muted", isPaid);
+    };
+
+    setPaidState(Boolean(item.is_paid));
+
+    paidCheckbox.addEventListener("change", async () => {
+      const previousValue = item.is_paid;
+      const nextValue = paidCheckbox.checked;
+      item.is_paid = nextValue;
+      setPaidState(nextValue);
+      try {
+        const response = await apiFetch("/api/recurring-payment-toggle/", {
+          method: "POST",
+          body: JSON.stringify({
+            expense_id: item.id,
+            year: appState.year,
+            month: appState.month,
+          }),
+        });
+        item.is_paid = Boolean(response.is_paid);
+        paidCheckbox.checked = item.is_paid;
+        setPaidState(item.is_paid);
+      } catch (error) {
+        item.is_paid = previousValue;
+        paidCheckbox.checked = previousValue;
+        setPaidState(previousValue);
+        showToast("Não foi possível atualizar o pagamento.", "danger");
+      }
+    });
+
+    row.append(paidCell, descriptionCell, dueCell, valueCell, actionsCell);
     elements.recurringTableBody.appendChild(row);
 
     const setEditing = (isEditing) => {
@@ -504,6 +682,7 @@ const renderCardOptions = () => {
 
 const renderAll = () => {
   renderSummary();
+  renderCharts();
   renderCards();
   renderCardOptions();
   renderPurchaseFilters();
