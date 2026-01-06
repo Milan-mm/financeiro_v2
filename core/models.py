@@ -38,3 +38,19 @@ class RecurringExpense(models.Model):
 
     def __str__(self):
         return self.descricao
+
+
+class RecurringPayment(models.Model):
+    expense = models.ForeignKey(RecurringExpense, on_delete=models.CASCADE)
+    year = models.IntegerField()
+    month = models.IntegerField()
+    is_paid = models.BooleanField(default=False)
+    paid_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["expense", "year", "month"], name="unique_recurring_payment")
+        ]
+
+    def __str__(self):
+        return f"{self.expense} - {self.month}/{self.year}"

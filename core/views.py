@@ -11,7 +11,7 @@ from django.shortcuts import redirect, render
 from django.views.decorators.http import require_http_methods
 
 from .forms import CardForm, CardPurchaseForm, RecurringExpenseForm
-from .models import Card, CardPurchase, RecurringExpense
+from .models import Card, CardPurchase, RecurringExpense, RecurringPayment
 
 
 def login_view(request):
@@ -64,13 +64,21 @@ def _build_month_data(year, month):
             )
 
     recurring_items = []
-    for conta in RecurringExpense.objects.filter(ativo=True).order_by("dia_vencimento"):
+    recurring_queryset = RecurringExpense.objects.filter(ativo=True).order_by("dia_vencimento")
+    recurring_payments = RecurringPayment.objects.filter(
+        expense__in=recurring_queryset,
+        year=year,
+        month=month,
+    )
+    payments_by_expense = {payment.expense_id: payment for payment in recurring_payments}
+    for conta in recurring_queryset:
         if conta.inicio > month_end:
             continue
         if conta.fim and conta.fim < month_start:
             continue
         due_day = min(conta.dia_vencimento, monthrange(year, month)[1])
         vencimento = date(year, month, due_day)
+        payment = payments_by_expense.get(conta.id)
         recurring_items.append(
             {
                 "id": conta.id,
@@ -81,6 +89,7 @@ def _build_month_data(year, month):
                 "fim": conta.fim.isoformat() if conta.fim else None,
                 "ativo": conta.ativo,
                 "vencimento": vencimento.isoformat(),
+                "is_paid": bool(payment.is_paid) if payment else False,
             }
         )
 
@@ -275,3 +284,31 @@ def recurring_expense_detail_api(request, expense_id):
         form.save()
         return JsonResponse({"updated": True})
     return JsonResponse({"error": "Dados inválidos.", "details": form.errors}, status=400)
+
+
+@login_required
+@require_http_methods(["POST"])
+def recurring_payment_toggle_api(request):
+    payload = _json_body(request)
+    try:
+        expense_id = int(payload.get("expense_id"))
+        year = int(payload.get("year"))
+        month = int(payload.get("month"))
+    except (TypeError, ValueError):
+        return JsonResponse({"error": "Dados inválidos."}, status=400)
+
+    if month < 1 or month > 12:
+        return JsonResponse({"error": "Mês inválido."}, status=400)
+
+    expense = get_object_or_404(RecurringExpense, pk=expense_id)
+    payment, created = RecurringPayment.objects.get_or_create(
+        expense=expense,
+        year=year,
+        month=month,
+    )
+    if created:
+        payment.is_paid = True
+    else:
+        payment.is_paid = not payment.is_paid
+    payment.save(update_fields=["is_paid", "paid_at"])
+    return JsonResponse({"is_paid": payment.is_paid})
