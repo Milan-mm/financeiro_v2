@@ -3,7 +3,7 @@ from datetime import date
 import json
 
 from django.contrib import messages
-from django.contrib.auth import authenticate, login
+from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
@@ -11,7 +11,7 @@ from django.shortcuts import redirect, render
 from django.views.decorators.http import require_http_methods
 
 from .forms import CardForm, CardPurchaseForm, RecurringExpenseForm
-from .models import Card, CardPurchase, RecurringExpense
+from .models import Card, CardPurchase, RecurringExpense, RecurringPayment
 
 
 def login_view(request):
@@ -30,6 +30,12 @@ def login_view(request):
     return render(request, "core/login.html")
 
 
+@login_required
+def logout_view(request):
+    logout(request)
+    return redirect("login")
+
+
 def _add_months(base_date, months):
     total_month = base_date.month - 1 + months
     year = base_date.year + total_month // 12
@@ -38,11 +44,15 @@ def _add_months(base_date, months):
     return date(year, month, day)
 
 
-def _build_month_data(year, month):
+def _build_month_data(user, year, month):
     month_start = date(year, month, 1)
     month_end = date(year, month, monthrange(year, month)[1])
 
-    card_purchases = CardPurchase.objects.select_related("cartao").order_by("primeiro_vencimento")
+    card_purchases = (
+        CardPurchase.objects.select_related("cartao")
+        .filter(user=user)
+        .order_by("primeiro_vencimento")
+    )
     purchases = []
     for purchase in card_purchases:
         diff = (year - purchase.primeiro_vencimento.year) * 12 + (month - purchase.primeiro_vencimento.month)
@@ -64,13 +74,21 @@ def _build_month_data(year, month):
             )
 
     recurring_items = []
-    for conta in RecurringExpense.objects.filter(ativo=True).order_by("dia_vencimento"):
+    recurring_queryset = RecurringExpense.objects.filter(user=user, ativo=True).order_by("dia_vencimento")
+    recurring_payments = RecurringPayment.objects.filter(
+        expense__in=recurring_queryset,
+        year=year,
+        month=month,
+    )
+    payments_by_expense = {payment.expense_id: payment for payment in recurring_payments}
+    for conta in recurring_queryset:
         if conta.inicio > month_end:
             continue
         if conta.fim and conta.fim < month_start:
             continue
         due_day = min(conta.dia_vencimento, monthrange(year, month)[1])
         vencimento = date(year, month, due_day)
+        payment = payments_by_expense.get(conta.id)
         recurring_items.append(
             {
                 "id": conta.id,
@@ -81,6 +99,7 @@ def _build_month_data(year, month):
                 "fim": conta.fim.isoformat() if conta.fim else None,
                 "ativo": conta.ativo,
                 "vencimento": vencimento.isoformat(),
+                "is_paid": bool(payment.is_paid) if payment else False,
             }
         )
 
@@ -89,7 +108,7 @@ def _build_month_data(year, month):
     total_month = total_card + total_recurring
 
     cards = []
-    for card in Card.objects.filter(ativo=True).order_by("nome"):
+    for card in Card.objects.filter(user=user, ativo=True).order_by("nome"):
         total_mes = sum(item["valor_parcela"] for item in purchases if item["cartao_id"] == card.id)
         cards.append(
             {
@@ -128,6 +147,7 @@ def dashboard(request):
 
     card_form = CardForm(prefix="card")
     purchase_form = CardPurchaseForm(prefix="purchase")
+    purchase_form.fields["cartao"].queryset = Card.objects.filter(user=request.user)
     recurring_form = RecurringExpenseForm(prefix="recurring")
 
     if request.method == "POST":
@@ -135,23 +155,27 @@ def dashboard(request):
         if form_type == "card":
             card_form = CardForm(request.POST, prefix="card")
             if card_form.is_valid():
+                card_form.instance.user = request.user
                 card_form.save()
                 messages.success(request, "Cartão cadastrado com sucesso.")
                 return redirect("dashboard")
         elif form_type == "purchase":
             purchase_form = CardPurchaseForm(request.POST, prefix="purchase")
+            purchase_form.fields["cartao"].queryset = Card.objects.filter(user=request.user)
             if purchase_form.is_valid():
+                purchase_form.instance.user = request.user
                 purchase_form.save()
                 messages.success(request, "Compra lançada com sucesso.")
                 return redirect("dashboard")
         elif form_type == "recurring":
             recurring_form = RecurringExpenseForm(request.POST, prefix="recurring")
             if recurring_form.is_valid():
+                recurring_form.instance.user = request.user
                 recurring_form.save()
                 messages.success(request, "Conta recorrente cadastrada com sucesso.")
                 return redirect("dashboard")
 
-    month_data = _build_month_data(year, month)
+    month_data = _build_month_data(request.user, year, month)
 
     previous_month = _add_months(month_start, -1).strftime("%Y-%m")
     next_month = _add_months(month_start, 1).strftime("%Y-%m")
@@ -174,6 +198,53 @@ def dashboard(request):
 
 
 @login_required
+def cards_view(request):
+    form = CardForm(prefix="card")
+    cards = Card.objects.filter(user=request.user).order_by("nome")
+    if request.method == "POST":
+        form = CardForm(request.POST, prefix="card")
+        if form.is_valid():
+            form.instance.user = request.user
+            form.save()
+            messages.success(request, "Cartão cadastrado com sucesso.")
+            return redirect("cards")
+    return render(
+        request,
+        "core/cards.html",
+        {
+            "cards": cards,
+            "card_form": form,
+        },
+    )
+
+
+@login_required
+def expenses_view(request):
+    today = date.today()
+    month_param = request.GET.get("month")
+    if month_param:
+        year, month = [int(part) for part in month_param.split("-")]
+    else:
+        year, month = today.year, today.month
+
+    month_data = _build_month_data(request.user, year, month)
+    context = {
+        "month_start": date(year, month, 1),
+        "installments": month_data["purchases"],
+        "recurring_items": month_data["recurring"],
+        "total_card": month_data["totals"]["total_card"],
+        "total_recurring": month_data["totals"]["total_recurring"],
+        "total_month": month_data["totals"]["total_month"],
+    }
+    return render(request, "core/expenses.html", context)
+
+
+@login_required
+def settings_view(request):
+    return render(request, "core/settings.html")
+
+
+@login_required
 @require_http_methods(["GET"])
 def month_data_api(request):
     try:
@@ -182,7 +253,7 @@ def month_data_api(request):
     except (TypeError, ValueError):
         return JsonResponse({"error": "Ano e mês inválidos."}, status=400)
 
-    data = _build_month_data(year, month)
+    data = _build_month_data(request.user, year, month)
     response = {
         "year": year,
         "month": month,
@@ -208,7 +279,9 @@ def card_purchase_create_api(request):
     if "cartao_id" in payload:
         payload["cartao"] = payload.pop("cartao_id")
     form = CardPurchaseForm(payload)
+    form.fields["cartao"].queryset = Card.objects.filter(user=request.user)
     if form.is_valid():
+        form.instance.user = request.user
         purchase = form.save()
         return JsonResponse({"id": purchase.id}, status=201)
     return JsonResponse({"error": "Dados inválidos.", "details": form.errors}, status=400)
@@ -217,7 +290,7 @@ def card_purchase_create_api(request):
 @login_required
 @require_http_methods(["PATCH", "DELETE"])
 def card_purchase_detail_api(request, purchase_id):
-    purchase = get_object_or_404(CardPurchase, pk=purchase_id)
+    purchase = get_object_or_404(CardPurchase, pk=purchase_id, user=request.user)
     if request.method == "DELETE":
         purchase.delete()
         return JsonResponse({"deleted": True})
@@ -235,6 +308,7 @@ def card_purchase_detail_api(request, purchase_id):
     }
     data.update(payload)
     form = CardPurchaseForm(data, instance=purchase)
+    form.fields["cartao"].queryset = Card.objects.filter(user=request.user)
     if form.is_valid():
         form.save()
         return JsonResponse({"updated": True})
@@ -247,6 +321,7 @@ def recurring_expense_create_api(request):
     payload = _json_body(request)
     form = RecurringExpenseForm(payload)
     if form.is_valid():
+        form.instance.user = request.user
         expense = form.save()
         return JsonResponse({"id": expense.id}, status=201)
     return JsonResponse({"error": "Dados inválidos.", "details": form.errors}, status=400)
@@ -255,7 +330,7 @@ def recurring_expense_create_api(request):
 @login_required
 @require_http_methods(["PATCH", "DELETE"])
 def recurring_expense_detail_api(request, expense_id):
-    expense = get_object_or_404(RecurringExpense, pk=expense_id)
+    expense = get_object_or_404(RecurringExpense, pk=expense_id, user=request.user)
     if request.method == "DELETE":
         expense.delete()
         return JsonResponse({"deleted": True})
@@ -275,3 +350,31 @@ def recurring_expense_detail_api(request, expense_id):
         form.save()
         return JsonResponse({"updated": True})
     return JsonResponse({"error": "Dados inválidos.", "details": form.errors}, status=400)
+
+
+@login_required
+@require_http_methods(["POST"])
+def recurring_payment_toggle_api(request):
+    payload = _json_body(request)
+    try:
+        expense_id = int(payload.get("expense_id"))
+        year = int(payload.get("year"))
+        month = int(payload.get("month"))
+    except (TypeError, ValueError):
+        return JsonResponse({"error": "Dados inválidos."}, status=400)
+
+    if month < 1 or month > 12:
+        return JsonResponse({"error": "Mês inválido."}, status=400)
+
+    expense = get_object_or_404(RecurringExpense, pk=expense_id, user=request.user)
+    payment, created = RecurringPayment.objects.get_or_create(
+        expense=expense,
+        year=year,
+        month=month,
+    )
+    if created:
+        payment.is_paid = True
+    else:
+        payment.is_paid = not payment.is_paid
+    payment.save(update_fields=["is_paid", "paid_at"])
+    return JsonResponse({"is_paid": payment.is_paid})
