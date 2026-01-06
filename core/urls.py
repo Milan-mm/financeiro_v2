@@ -15,4 +15,9 @@ urlpatterns = [
         views.recurring_expense_detail_api,
         name="recurring-expense-detail",
     ),
+    path(
+        "api/recurring-payment-toggle/",
+        views.recurring_payment_toggle_api,
+        name="recurring-payment-toggle",
+    ),
 ]
