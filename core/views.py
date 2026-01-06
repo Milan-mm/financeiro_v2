@@ -10,7 +10,7 @@ from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_http_methods
 
-from .forms import CardForm, CardPurchaseForm, RecurringExpenseForm
+from .forms import CardForm, CardPurchaseForm, RecurringExpenseForm, UserRegisterForm
 from .models import Card, CardPurchase, RecurringExpense, RecurringPayment
 
 
@@ -241,7 +241,22 @@ def expenses_view(request):
 
 @login_required
 def settings_view(request):
-    return render(request, "core/settings.html")
+    register_form = UserRegisterForm(prefix="register")
+
+    if request.method == "POST":
+        # Verifica se o POST veio do formulário de registro
+        if "action" in request.POST and request.POST.get("action") == "register":
+            register_form = UserRegisterForm(request.POST, prefix="register")
+            if register_form.is_valid():
+                register_form.save()
+                messages.success(request, "Novo usuário adicionado com sucesso.")
+                return redirect("settings")
+            else:
+                messages.error(request, "Erro ao adicionar usuário. Verifique os dados.")
+
+    return render(request, "core/settings.html", {
+        "register_form": register_form
+    })
 
 
 @login_required

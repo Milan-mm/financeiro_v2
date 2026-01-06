@@ -104,16 +104,34 @@
             <div class="col-lg-6">
               <section class="card border-0 shadow-sm mb-4">
                 <div class="card-body">
-                  <h2 class="h6 fw-bold">Adicionar usuário</h2>
-                  <p class="text-muted small">Convide um novo usuário para o painel.</p>
-                  <form>
-                    <div class="mb-3">
-                      <label class="form-label">E-mail</label>
-                      <input type="email" class="form-control" placeholder="usuario@exemplo.com" />
-                    </div>
-                    <button class="btn btn-outline-primary" type="button">Enviar convite</button>
-                  </form>
-                </div>
+  <h2 class="h6 fw-bold">Adicionar usuário</h2>
+  <p class="text-muted small">Crie um novo acesso diretamente.</p>
+
+  <form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="register">
+
+    <div class="mb-3">
+      <label class="form-label">E-mail (Login)</label>
+      {{ register_form.email }}
+      {% if register_form.email.errors %}
+        <div class="text-danger small mt-1">{{ register_form.email.errors.0 }}</div>
+      {% endif %}
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Senha</label>
+      {{ register_form.password }}
+      {% if register_form.password.errors %}
+        <div class="text-danger small mt-1">{{ register_form.password.errors.0 }}</div>
+      {% endif %}
+    </div>
+
+    <button class="btn btn-primary" type="submit">
+      <i class="bi bi-person-plus me-2"></i>Adicionar Usuário
+    </button>
+  </form>
+</div>
               </section>
 
               <section class="card border-0 shadow-sm">
