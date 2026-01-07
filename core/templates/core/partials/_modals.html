@@ -2,7 +2,7 @@
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="purchaseModalLabel">Nova compra no cartão</h5>
+        <h5 class="modal-title" id="purchaseModalLabel">Nova compra</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
       </div>
       <div class="modal-body">
@@ -89,6 +89,16 @@
             <input type="text" class="form-control" id="recurringDescription" required />
             <div class="invalid-feedback">Informe a descrição.</div>
           </div>
+            <div class="mb-3">
+  <label class="form-label">Categoria</label>
+  <div class="input-group">
+      <select class="form-select" id="recurringCategory">
+          <option value="">Sem categoria</option>
+          </select>
+      <input type="text" class="form-control" id="recurringNewCategory" placeholder="Ou nova..." style="display:none;">
+      <button class="btn btn-outline-secondary" type="button" id="btnToggleNewCatRecurring">+</button>
+  </div>
+</div>
           <div class="row g-3">
             <div class="col-sm-6">
               <label for="recurringValue" class="form-label">Valor</label>

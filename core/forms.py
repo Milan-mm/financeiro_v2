@@ -59,13 +59,34 @@ class CardPurchaseForm(forms.ModelForm):
 
 
 class RecurringExpenseForm(forms.ModelForm):
+    # Campo para criar nova categoria "on-the-fly"
+    nova_categoria = forms.CharField(required=False,
+                                     widget=forms.TextInput(attrs={'placeholder': 'Ou digite nova categoria'}))
+
     class Meta:
         model = RecurringExpense
-        fields = ["descricao", "valor", "dia_vencimento", "inicio", "fim", "ativo"]
+        # Adicionamos 'categoria' à lista de campos
+        fields = ["descricao", "valor", "dia_vencimento", "inicio", "fim", "ativo", "categoria"]
         widgets = {
             "inicio": forms.DateInput(attrs={"type": "date"}),
             "fim": forms.DateInput(attrs={"type": "date"}),
         }
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        # Lógica idêntica à de Compras para criar categoria
+        nova_cat_nome = self.cleaned_data.get('nova_categoria')
+        if nova_cat_nome:
+            cat, created = Category.objects.get_or_create(
+                nome=nova_cat_nome,
+                user=instance.user,
+                defaults={'cor': '#6c757d'}
+            )
+            instance.categoria = cat
+
+        if commit:
+            instance.save()
+        return instance
 
 class UserRegisterForm(forms.ModelForm):
     email = forms.EmailField(

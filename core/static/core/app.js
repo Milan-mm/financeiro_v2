@@ -136,6 +136,29 @@ const updateSelectors = () => {
   elements.yearSelect.value = appState.year;
 };
 
+// --- BLOCO 1: Função para carregar categorias ---
+const loadCategories = async () => {
+  try {
+    const cats = await apiFetch('/api/categories/');
+
+    // 1. Preenche Select de Compras
+    const selectPurchase = document.getElementById('purchaseCategory');
+    if (selectPurchase) {
+        selectPurchase.innerHTML = '<option value="">Sem categoria</option>';
+        cats.forEach(c => selectPurchase.innerHTML += `<option value="${c.id}">${c.nome}</option>`);
+    }
+
+    // 2. Preenche Select de Recorrências (ESTA É A NOVIDADE)
+    const selectRecurring = document.getElementById('recurringCategory');
+    if (selectRecurring) {
+        selectRecurring.innerHTML = '<option value="">Sem categoria</option>';
+        cats.forEach(c => selectRecurring.innerHTML += `<option value="${c.id}">${c.nome}</option>`);
+    }
+  } catch (e) {
+    console.error("Erro ao carregar categorias:", e);
+  }
+};
+
 const loadMonthData = async () => {
   setLoadingState(true);
   try {
@@ -499,160 +522,77 @@ const renderPurchaseTable = () => {
   });
 };
 
+// --- BLOCO 3: Mostrar Categoria na Tabela ---
 const renderRecurringTable = () => {
-  const data = applyRecurringFilters(appState.data.recurring || []);
-  elements.recurringTableBody.innerHTML = "";
-  elements.recurringEmpty.style.display = data.length ? "none" : "block";
+  const tbody = document.querySelector("#recurringTable tbody");
+  if (!tbody) return;
+  tbody.innerHTML = "";
 
-  data.forEach((item) => {
-    const row = document.createElement("tr");
-    row.dataset.recurringId = item.id;
+  let filtered = appState.data.recurring.filter((r) =>
+    r.descricao.toLowerCase().includes(appState.filters.recurringSearch.toLowerCase())
+  );
 
-    const paidCell = document.createElement("td");
-    const paidWrapper = document.createElement("div");
-    paidWrapper.className = "form-check m-0 d-flex justify-content-center";
-    const paidCheckbox = document.createElement("input");
-    paidCheckbox.type = "checkbox";
-    paidCheckbox.className = "form-check-input";
-    paidCheckbox.checked = Boolean(item.is_paid);
-    paidWrapper.appendChild(paidCheckbox);
-    paidCell.appendChild(paidWrapper);
+  // Ordenação
+  filtered.sort((a, b) => {
+      if (appState.filters.recurringSort === "date") return a.dia_vencimento - b.dia_vencimento;
+      if (appState.filters.recurringSort === "value") return b.valor - a.valor;
+      return 0;
+  });
 
-    const descriptionCell = document.createElement("td");
-    const descriptionEditable = createEditableCell(item.descricao, "text", item.descricao);
-    descriptionCell.appendChild(descriptionEditable.wrapper);
+  filtered.forEach((r) => {
+    const tr = document.createElement("tr");
+    tr.dataset.id = r.id;
+    if (!r.ativo) tr.classList.add("text-muted", "bg-light");
 
-    const dueCell = document.createElement("td");
-    const dueEditable = createEditableCell(`Dia ${item.dia_vencimento}`, "number", item.dia_vencimento);
-    dueCell.appendChild(dueEditable.wrapper);
+    // Dia
+    const dayCell = document.createElement("td");
+    dayCell.textContent = r.dia_vencimento;
+    tr.appendChild(dayCell);
 
-    const valueCell = document.createElement("td");
-    valueCell.className = "text-end";
-    const valueEditable = createEditableCell(formatCurrency(item.valor), "number", item.valor, "form-control form-control-sm text-end");
-    valueCell.appendChild(valueEditable.wrapper);
+    // Descrição + Categoria (AQUI ESTÁ A MUDANÇA VISUAL)
+    const descCell = document.createElement("td");
+    let catHtml = "";
+    if(r.categoria_nome) {
+        catHtml = `<span class="badge bg-secondary ms-2" style="font-size: 0.7em;">${r.categoria_nome}</span>`;
+    }
+    descCell.innerHTML = `<div class="fw-medium">${r.descricao}${catHtml}</div><small class="text-muted">Desde ${new Date(r.inicio).toLocaleDateString("pt-BR")}</small>`;
+    tr.appendChild(descCell);
 
-    const actionsCell = document.createElement("td");
-    actionsCell.className = "text-end";
-    actionsCell.innerHTML = `
-      <div class="row-actions">
-        <button class="btn btn-outline-secondary btn-sm" data-action="edit">Editar</button>
-        <button class="btn btn-outline-danger btn-sm" data-action="delete">Excluir</button>
-      </div>
-    `;
+    // Valor
+    const valCell = document.createElement("td");
+    valCell.textContent = currencyFormatter.format(r.valor);
+    tr.appendChild(valCell);
 
-    const setPaidState = (isPaid) => {
-      row.classList.toggle("text-decoration-line-through", isPaid);
-      row.classList.toggle("text-muted", isPaid);
-    };
+    // Status
+    const statusCell = document.createElement("td");
+    const statusBadge = document.createElement("span");
+    statusBadge.className = `badge ${r.ativo ? (r.is_paid ? "bg-success" : "bg-warning text-dark") : "bg-secondary"}`;
+    statusBadge.textContent = r.ativo ? (r.is_paid ? "Pago" : "Pendente") : "Inativo";
+    statusCell.appendChild(statusBadge);
+    tr.appendChild(statusCell);
 
-    setPaidState(Boolean(item.is_paid));
+    // Ações
+    const actCell = document.createElement("td");
+    actCell.className = "text-end";
 
-    paidCheckbox.addEventListener("change", async () => {
-      const previousValue = item.is_paid;
-      const nextValue = paidCheckbox.checked;
-      item.is_paid = nextValue;
-      setPaidState(nextValue);
-      try {
-        const response = await apiFetch("/api/recurring-payment-toggle/", {
-          method: "POST",
-          body: JSON.stringify({
-            expense_id: item.id,
-            year: appState.year,
-            month: appState.month,
-          }),
-        });
-        item.is_paid = Boolean(response.is_paid);
-        paidCheckbox.checked = item.is_paid;
-        setPaidState(item.is_paid);
-      } catch (error) {
-        item.is_paid = previousValue;
-        paidCheckbox.checked = previousValue;
-        setPaidState(previousValue);
-        showToast("Não foi possível atualizar o pagamento.", "danger");
-      }
-    });
+    if (r.ativo && !r.is_paid) {
+        const payBtn = document.createElement("button");
+        payBtn.className = "btn btn-sm btn-outline-success me-2";
+        payBtn.innerHTML = '<i class="bi bi-check-lg"></i>';
+        payBtn.onclick = () => markRecurringAsPaid(r.id); // Certifica-te que esta função existe no teu código
+        actCell.appendChild(payBtn);
+    }
 
-    row.append(paidCell, descriptionCell, dueCell, valueCell, actionsCell);
-    elements.recurringTableBody.appendChild(row);
+    const delBtn = document.createElement("button");
+    delBtn.className = "btn btn-sm btn-link text-danger p-0";
+    delBtn.innerHTML = '<i class="bi bi-trash"></i>';
+    delBtn.onclick = () => deleteRecurring(r.id); // Certifica-te que esta função existe no teu código
+    actCell.appendChild(delBtn);
+    tr.appendChild(actCell);
 
-    const setEditing = (isEditing) => {
-      [descriptionEditable.wrapper, dueEditable.wrapper, valueEditable.wrapper].forEach((field) => {
-        field.classList.toggle("is-editing", isEditing);
-      });
-      actionsCell.innerHTML = isEditing
-        ? `
-          <div class="row-actions">
-            <button class="btn btn-primary btn-sm" data-action="save">Salvar</button>
-            <button class="btn btn-light btn-sm" data-action="cancel">Cancelar</button>
-          </div>
-        `
-        : `
-          <div class="row-actions">
-            <button class="btn btn-outline-secondary btn-sm" data-action="edit">Editar</button>
-            <button class="btn btn-outline-danger btn-sm" data-action="delete">Excluir</button>
-          </div>
-        `;
-    };
-
-    actionsCell.addEventListener("click", async (event) => {
-      const action = event.target.dataset.action;
-      if (!action) return;
-      if (action === "edit") {
-        setEditing(true);
-      }
-      if (action === "cancel") {
-        descriptionEditable.input.value = item.descricao;
-        dueEditable.input.value = item.dia_vencimento;
-        valueEditable.input.value = item.valor;
-        setEditing(false);
-      }
-      if (action === "save") {
-        const updated = {
-          descricao: descriptionEditable.input.value.trim(),
-          dia_vencimento: Number(dueEditable.input.value),
-          valor: Number(valueEditable.input.value || 0),
-        };
-        if (!updated.descricao || !updated.dia_vencimento) {
-          showToast("Preencha todos os campos obrigatórios.", "danger");
-          return;
-        }
-        setEditing(false);
-        const previous = { ...item };
-        Object.assign(item, updated);
-        renderRecurringTable();
-        try {
-          await apiFetch(`/api/recurring-expense/${item.id}/`, {
-            method: "PATCH",
-            body: JSON.stringify(updated),
-          });
-          showToast("Recorrência atualizada.");
-          await loadMonthData();
-        } catch (error) {
-          Object.assign(item, previous);
-          renderRecurringTable();
-          showToast(`Erro ao atualizar recorrência: ${error.message}`, "danger");
-        }
-      }
-      if (action === "delete") {
-        openConfirmDelete(`Excluir recorrência "${item.descricao}"?`, async () => {
-          const previousData = [...appState.data.recurring];
-          appState.data.recurring = appState.data.recurring.filter((rec) => rec.id !== item.id);
-          renderRecurringTable();
-          try {
-            await apiFetch(`/api/recurring-expense/${item.id}/`, { method: "DELETE" });
-            showToast("Recorrência excluída.");
-            await loadMonthData();
-          } catch (error) {
-            appState.data.recurring = previousData;
-            renderRecurringTable();
-            showToast(`Erro ao excluir recorrência: ${error.message}`, "danger");
-          }
-        });
-      }
-    });
+    tbody.appendChild(tr);
   });
 };
-
 const renderPurchaseFilters = () => {
   const cardFilter = elements.purchaseCardFilter;
   cardFilter.innerHTML = `<option value="all">Todos</option>`;
@@ -839,6 +779,7 @@ const handlePurchaseSubmit = async (event) => {
     showToast(`Erro ao salvar compra: ${error.message}`, "danger");
   }
 };
+// --- BLOCO 2: Salvar Recorrência com Categoria ---
 const handleRecurringSubmit = async (event) => {
   event.preventDefault();
   const form = event.target;
@@ -846,6 +787,11 @@ const handleRecurringSubmit = async (event) => {
     form.classList.add("was-validated");
     return;
   }
+
+  // LER CATEGORIAS (Novidade)
+  const newCatName = document.getElementById('recurringNewCategory').value;
+  const catId = document.getElementById('recurringCategory').value;
+
   const payload = {
     descricao: elements.recurringDescription.value.trim(),
     valor: Number(elements.recurringValue.value),
@@ -853,34 +799,31 @@ const handleRecurringSubmit = async (event) => {
     inicio: elements.recurringStart.value,
     fim: elements.recurringEnd.value || null,
     ativo: elements.recurringActive.checked,
+    // ENVIAR CATEGORIAS (Novidade)
+    categoria: catId ? Number(catId) : null,
+    nova_categoria: newCatName || null
   };
-  const tempId = `temp-${Date.now()}`;
-  const tempItem = {
-    id: tempId,
-    descricao: payload.descricao,
-    valor: payload.valor,
-    dia_vencimento: payload.dia_vencimento,
-    vencimento: payload.inicio,
-  };
-  appState.data.recurring.unshift(tempItem);
-  renderRecurringTable();
+
   try {
-    await apiFetch("/api/recurring-expense/", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
+    await apiFetch("/api/recurring-expense/", { method: "POST", body: JSON.stringify(payload) });
     showToast("Recorrência adicionada.");
     form.reset();
     form.classList.remove("was-validated");
+
+    // RESETAR VISUAL DA CATEGORIA
+    document.getElementById('recurringNewCategory').style.display = 'none';
+    document.getElementById('recurringCategory').style.display = 'block';
+    const btn = document.getElementById('btnToggleNewCatRecurring');
+    if(btn) btn.textContent = '+';
+
     bootstrap.Modal.getInstance(document.getElementById("recurringModal"))?.hide();
     await loadMonthData();
+    // Se criou categoria nova, recarrega as listas
+    if (payload.nova_categoria) loadCategories();
   } catch (error) {
-    appState.data.recurring = appState.data.recurring.filter((item) => item.id !== tempId);
-    renderRecurringTable();
     showToast(`Erro ao salvar recorrência: ${error.message}`, "danger");
   }
 };
-
 const bindEvents = () => {
   // --- Eventos de Navegação e Filtros (Originais) ---
   elements.monthSelect.addEventListener("change", () => {
@@ -921,6 +864,36 @@ const bindEvents = () => {
 
   document.getElementById("purchaseForm")?.addEventListener("submit", handlePurchaseSubmit);
   document.getElementById("recurringForm")?.addEventListener("submit", handleRecurringSubmit);
+
+  // --- BLOCO 4: Listener do Botão da Categoria (Recorrência) ---
+  // Colar isto DENTRO de bindEvents, pode ser no final, antes do } de fecho.
+
+  const btnToggleCatRec = document.getElementById("btnToggleNewCatRecurring");
+  if (btnToggleCatRec) {
+    btnToggleCatRec.addEventListener("click", () => {
+      const select = document.getElementById("recurringCategory");
+      const input = document.getElementById("recurringNewCategory");
+      if (input.style.display === "none") {
+        input.style.display = "block"; select.style.display = "none"; input.focus(); btnToggleCatRec.textContent = "x";
+      } else {
+        input.style.display = "none"; select.style.display = "block"; input.value = ""; btnToggleCatRec.textContent = "+";
+      }
+    });
+  }
+
+  // Adicionar também este reset no evento do modal recurringModal
+  document.getElementById("recurringModal")?.addEventListener("shown.bs.modal", () => {
+    // Reset visual
+    const inputCat = document.getElementById("recurringNewCategory");
+    const selectCat = document.getElementById("recurringCategory");
+    const btnCat = document.getElementById("btnToggleNewCatRecurring");
+    if (inputCat) { inputCat.style.display = "none"; inputCat.value = ""; }
+    if (selectCat) selectCat.style.display = "block";
+    if (btnCat) btnCat.textContent = "+";
+
+    // Foca na descrição (código que já deves ter)
+    elements.recurringDescription.focus();
+  });
 
   // --- NOVA LÓGICA: Alternar campos por Tipo de Pagamento ---
   const paymentRadios = document.querySelectorAll('input[name="tipo_pagamento"]');
@@ -1049,6 +1022,7 @@ const init = () => {
 
   populateMonthSelectors();
   updateSelectors();
+  loadCategories();
   bindEvents();
   loadMonthData();
 };
