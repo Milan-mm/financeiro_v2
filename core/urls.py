@@ -1,6 +1,5 @@
 from django.urls import path
 
-import core.webhook
 from . import views
 
 
@@ -34,6 +33,6 @@ urlpatterns = [
         views.recurring_payment_toggle_api,
         name="recurring-payment-toggle",
     ),
-path('webhooks/twilio/', core.webhook.twilio_webhook(), name='twilio_webhook'),
+path('webhooks/twilio/', views.twilio_webhook, name='twilio_webhook'),
     path("api/categories/", views.categories_api, name="categories-api"), # <--- ESTA LINHA É OBRIGATÓRIA
 ]
