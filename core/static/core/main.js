@@ -10,6 +10,7 @@ import {
   renderRecurringTable,
 } from "./modules/tables.js";
 import { initSystemLogs, updateLogsPendingBadge } from "./modules/logger.js";
+import { initImporter } from './modules/importer.js';
 
 export const loadCategories = async () => {
   try {
@@ -385,6 +386,8 @@ export const init = () => {
   updateLogsPendingBadge();
   initSystemLogs();
 
+
+
   if (!document.getElementById("monthSelect")) {
     return;
   }
@@ -427,6 +430,7 @@ export const init = () => {
   loadCategories();
   bindEvents();
   loadMonthData();
+  initImporter(loadMonthData);
 };
 
 document.addEventListener("DOMContentLoaded", init);
