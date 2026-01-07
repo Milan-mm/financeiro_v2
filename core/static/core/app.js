@@ -169,6 +169,64 @@ const loadCategories = async () => {
   }
 };
 
+// 1. Função para marcar como pago
+const markRecurringAsPaid = async (id) => {
+    if (!confirm("Confirmar pagamento desta conta?")) return;
+
+    setLoadingState(true);
+    try {
+        // Envia o ano e mês atuais do appState para saber qual mês estamos pagando
+        const payload = {
+            year: appState.year,
+            month: appState.month
+        };
+
+        await apiFetch(`/api/recurring/${id}/pay/`, {
+            method: "POST",
+            body: JSON.stringify(payload),
+        });
+
+        showToast("Conta marcada como paga!", "success");
+        loadMonthData(); // Recarrega a tabela para atualizar a cor/status
+    } catch (error) {
+        showToast(`Erro: ${error.message}`, "danger");
+    } finally {
+        setLoadingState(false);
+    }
+};
+
+// 2. Função para editar o valor
+const editRecurringValue = async (id, valorAtual) => {
+    // Pede o novo valor ao utilizador (já preenchido com o atual)
+    const novoValor = prompt("Corrigir valor da conta:", valorAtual);
+
+    // Se cancelar ou deixar vazio, não faz nada
+    if (novoValor === null || novoValor.trim() === "") return;
+
+    // Substitui vírgula por ponto para garantir formato numérico
+    const valorFormatado = novoValor.replace(",", ".");
+
+    if (isNaN(valorFormatado)) {
+        alert("Por favor, insira um valor válido.");
+        return;
+    }
+
+    setLoadingState(true);
+    try {
+        await apiFetch(`/api/recurring/${id}/update-value/`, {
+            method: "POST",
+            body: JSON.stringify({ valor: parseFloat(valorFormatado) }),
+        });
+
+        showToast("Valor atualizado com sucesso!", "success");
+        loadMonthData();
+    } catch (error) {
+        showToast(`Erro ao atualizar: ${error.message}`, "danger");
+    } finally {
+        setLoadingState(false);
+    }
+};
+
 const loadMonthData = async () => {
   setLoadingState(true);
   try {
@@ -533,6 +591,7 @@ const renderPurchaseTable = () => {
 };
 
 // --- BLOCO 3: Mostrar Categoria na Tabela ---
+// --- BLOCO 3: Mostrar Categoria na Tabela (CORRIGIDO) ---
 const renderRecurringTable = () => {
   const tbody = document.querySelector("#recurringTable tbody");
   if (!tbody) return;
@@ -544,36 +603,37 @@ const renderRecurringTable = () => {
 
   // Ordenação
   filtered.sort((a, b) => {
-      if (appState.filters.recurringSort === "date") return a.dia_vencimento - b.dia_vencimento;
-      if (appState.filters.recurringSort === "value") return b.valor - a.valor;
-      return 0;
+    if (appState.filters.recurringSort === "date") return a.dia_vencimento - b.dia_vencimento;
+    if (appState.filters.recurringSort === "value") return b.valor - a.valor;
+    return 0;
   });
 
   filtered.forEach((r) => {
+    // AQUI: A variável chama-se 'tr'
     const tr = document.createElement("tr");
     tr.dataset.id = r.id;
     if (!r.ativo) tr.classList.add("text-muted", "bg-light");
 
-    // Dia
+    // 1. Dia
     const dayCell = document.createElement("td");
     dayCell.textContent = r.dia_vencimento;
     tr.appendChild(dayCell);
 
-    // Descrição + Categoria (AQUI ESTÁ A MUDANÇA VISUAL)
+    // 2. Descrição + Categoria
     const descCell = document.createElement("td");
     let catHtml = "";
-    if(r.categoria_nome) {
-        catHtml = `<span class="badge bg-secondary ms-2" style="font-size: 0.7em;">${r.categoria_nome}</span>`;
+    if (r.categoria_nome) {
+      catHtml = `<span class="badge bg-secondary ms-2" style="font-size: 0.7em;">${r.categoria_nome}</span>`;
     }
     descCell.innerHTML = `<div class="fw-medium">${r.descricao}${catHtml}</div><small class="text-muted">Desde ${new Date(r.inicio).toLocaleDateString("pt-BR")}</small>`;
     tr.appendChild(descCell);
 
-    // Valor
+    // 3. Valor
     const valCell = document.createElement("td");
     valCell.textContent = currencyFormatter.format(r.valor);
     tr.appendChild(valCell);
 
-    // Status
+    // 4. Status
     const statusCell = document.createElement("td");
     const statusBadge = document.createElement("span");
     statusBadge.className = `badge ${r.ativo ? (r.is_paid ? "bg-success" : "bg-warning text-dark") : "bg-secondary"}`;
@@ -581,23 +641,53 @@ const renderRecurringTable = () => {
     statusCell.appendChild(statusBadge);
     tr.appendChild(statusCell);
 
-    // Ações
+    // 5. Ações (CORRIGIDO)
     const actCell = document.createElement("td");
     actCell.className = "text-end";
 
-    if (r.ativo && !r.is_paid) {
+    if (r.ativo) {
+      // Botão Editar
+      const editBtn = document.createElement("button");
+      editBtn.className = "btn btn-sm btn-outline-secondary me-2";
+      editBtn.innerHTML = '<i class="bi bi-pencil"></i>';
+      editBtn.title = "Corrigir Valor";
+      editBtn.onclick = () => editRecurringValue(r.id, r.valor);
+      actCell.appendChild(editBtn);
+
+      // Lógica de Pagamento
+      if (!r.is_paid) {
+        // Botão Pagar
         const payBtn = document.createElement("button");
         payBtn.className = "btn btn-sm btn-outline-success me-2";
         payBtn.innerHTML = '<i class="bi bi-check-lg"></i>';
-        payBtn.onclick = () => markRecurringAsPaid(r.id); // Certifica-te que esta função existe no teu código
+        payBtn.title = "Marcar como Pago";
+        payBtn.onclick = () => markRecurringAsPaid(r.id);
         actCell.appendChild(payBtn);
+      } else {
+        // Badge Pago (Visual apenas)
+        const paidBadge = document.createElement("span");
+        paidBadge.className = "badge bg-success me-2";
+        paidBadge.innerText = "Pago";
+        actCell.appendChild(paidBadge);
+      }
     }
 
+    // Botão Excluir (Sempre visível)
     const delBtn = document.createElement("button");
     delBtn.className = "btn btn-sm btn-link text-danger p-0";
     delBtn.innerHTML = '<i class="bi bi-trash"></i>';
-    delBtn.onclick = () => deleteRecurring(r.id); // Certifica-te que esta função existe no teu código
+    // Nota: Certifica-te que tens a função deleteRecurring ou deleteRecurringExpense definida algures.
+    // Se não tiveres, comenta a linha abaixo para evitar erro.
+    if (typeof deleteRecurring === 'function') {
+        delBtn.onclick = () => deleteRecurring(r.id);
+    } else {
+        // Fallback caso a função tenha outro nome ou não exista
+        delBtn.onclick = () => console.log("Função deleteRecurring não encontrada");
+    }
+
     actCell.appendChild(delBtn);
+
+    // AQUI ESTAVA O ERRO: Usamos 'tr' e não 'row'
     tr.appendChild(actCell);
 
     tbody.appendChild(tr);

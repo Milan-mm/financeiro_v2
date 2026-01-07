@@ -49,21 +49,33 @@ def _build_month_data(user, year, month):
     month_start = date(year, month, 1)
     month_end = date(year, month, monthrange(year, month)[1])
 
+    # Busca as compras
     card_purchases = (
         CardPurchase.objects.select_related("cartao")
         .filter(user=user)
         .order_by("primeiro_vencimento")
     )
     purchases = []
+
     for purchase in card_purchases:
         diff = (year - purchase.primeiro_vencimento.year) * 12 + (month - purchase.primeiro_vencimento.month)
+
+        # Verifica se a parcela deve ser mostrada neste mês
         if 0 <= diff < purchase.parcelas:
             vencimento = _add_months(purchase.primeiro_vencimento, diff)
+
+            # LÓGICA DE PROTEÇÃO AQUI
+            # Se tiver cartão, usa o nome. Se não tiver (ex: Débito), usa "Débito / À Vista"
+            if purchase.cartao:
+                nome_origem = purchase.cartao.nome
+            else:
+                nome_origem = "Débito / À Vista"
+
             purchases.append(
                 {
                     "id": purchase.id,
                     "cartao_id": purchase.cartao_id,
-                    "cartao_nome": purchase.cartao.nome,
+                    "cartao_nome": nome_origem,  # Usamos a variável protegida aqui
                     "descricao": purchase.descricao,
                     "parcela_atual": diff + 1,
                     "parcelas": purchase.parcelas,
@@ -74,22 +86,27 @@ def _build_month_data(user, year, month):
                 }
             )
 
+    # Processamento de Recorrentes (Contas fixas)
     recurring_items = []
     recurring_queryset = RecurringExpense.objects.filter(user=user, ativo=True).order_by("dia_vencimento")
+
     recurring_payments = RecurringPayment.objects.filter(
         expense__in=recurring_queryset,
         year=year,
         month=month,
     )
     payments_by_expense = {payment.expense_id: payment for payment in recurring_payments}
+
     for conta in recurring_queryset:
         if conta.inicio > month_end:
             continue
         if conta.fim and conta.fim < month_start:
             continue
+
         due_day = min(conta.dia_vencimento, monthrange(year, month)[1])
         vencimento = date(year, month, due_day)
         payment = payments_by_expense.get(conta.id)
+
         recurring_items.append(
             {
                 "id": conta.id,
@@ -105,11 +122,14 @@ def _build_month_data(user, year, month):
             }
         )
 
+    # Cálculos dos Totais
     total_card = sum(item["valor_parcela"] for item in purchases)
     total_recurring = sum(item["valor"] for item in recurring_items)
     total_month = total_card + total_recurring
 
+    # Agrupamento por Cartão (para os totais no topo da dashboard)
     cards = []
+    # Nota: Aqui filtramos Card.objects, então só vai mostrar totais de cartões que realmente existem
     for card in Card.objects.filter(user=user, ativo=True).order_by("nome"):
         total_mes = sum(item["valor_parcela"] for item in purchases if item["cartao_id"] == card.id)
         cards.append(
@@ -134,6 +154,57 @@ def _build_month_data(user, year, month):
         "recurring": recurring_items,
     }
 
+
+# 1. API para Marcar como Pago
+@login_required
+@require_http_methods(["POST"])
+def pay_recurring_api(request, pk):
+    try:
+        data = json.loads(request.body)
+        year = int(data.get("year"))
+        month = int(data.get("month"))
+
+        expense = RecurringExpense.objects.get(pk=pk, user=request.user)
+
+        # Cria ou atualiza o registo de pagamento para este mês
+        payment, created = RecurringPayment.objects.get_or_create(
+            expense=expense,
+            year=year,
+            month=month,
+            defaults={"is_paid": True}
+        )
+
+        if not created:
+            payment.is_paid = True
+            payment.save()
+
+        return JsonResponse({"status": "ok"})
+    except RecurringExpense.DoesNotExist:
+        return JsonResponse({"error": "Conta não encontrada"}, status=404)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+# 2. API para Atualizar o Valor
+@login_required
+@require_http_methods(["POST"])
+def update_recurring_value_api(request, pk):
+    try:
+        data = json.loads(request.body)
+        novo_valor = data.get("valor")
+
+        if novo_valor is None:
+            return JsonResponse({"error": "Valor não fornecido"}, status=400)
+
+        expense = RecurringExpense.objects.get(pk=pk, user=request.user)
+        expense.valor = novo_valor
+        expense.save()
+
+        return JsonResponse({"status": "ok", "novo_valor": expense.valor})
+    except RecurringExpense.DoesNotExist:
+        return JsonResponse({"error": "Conta não encontrada"}, status=404)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
 
 @login_required
 def dashboard(request):
