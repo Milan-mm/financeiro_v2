@@ -5,13 +5,14 @@ import json
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.models import User
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_http_methods
 
 from .forms import CardForm, CardPurchaseForm, RecurringExpenseForm, UserRegisterForm
-from .models import Card, CardPurchase, RecurringExpense, RecurringPayment
+from .models import Card, CardPurchase, RecurringExpense, RecurringPayment, Category
 
 
 def login_view(request):
@@ -239,13 +240,16 @@ def expenses_view(request):
     return render(request, "core/expenses.html", context)
 
 
+# 2. Atualiza a função settings_view com esta nova versão completa
 @login_required
 def settings_view(request):
     register_form = UserRegisterForm(prefix="register")
 
     if request.method == "POST":
-        # Verifica se o POST veio do formulário de registro
-        if "action" in request.POST and request.POST.get("action") == "register":
+        action = request.POST.get("action")
+
+        # Lógica de CADASTRO (que já tinhas)
+        if action == "register":
             register_form = UserRegisterForm(request.POST, prefix="register")
             if register_form.is_valid():
                 register_form.save()
@@ -254,8 +258,28 @@ def settings_view(request):
             else:
                 messages.error(request, "Erro ao adicionar usuário. Verifique os dados.")
 
+        # NOVA Lógica de EXCLUSÃO
+        elif action == "delete_user":
+            user_id = request.POST.get("user_id")
+            try:
+                user_to_delete = User.objects.get(pk=user_id)
+                # Segurança: Impede que te excluas a ti próprio
+                if user_to_delete == request.user:
+                    messages.error(request, "Você não pode excluir o seu próprio usuário.")
+                else:
+                    email_removido = user_to_delete.email or user_to_delete.username
+                    user_to_delete.delete()
+                    messages.success(request, f"Usuário {email_removido} removido com sucesso.")
+            except User.DoesNotExist:
+                messages.error(request, "Usuário não encontrado.")
+            return redirect("settings")
+
+    # Busca todos os usuários, menos o logado atual, para preencher a lista
+    users = User.objects.exclude(pk=request.user.pk).order_by('username')
+
     return render(request, "core/settings.html", {
-        "register_form": register_form
+        "register_form": register_form,
+        "users": users,  # Enviamos a lista para o template
     })
 
 
@@ -366,6 +390,12 @@ def recurring_expense_detail_api(request, expense_id):
         return JsonResponse({"updated": True})
     return JsonResponse({"error": "Dados inválidos.", "details": form.errors}, status=400)
 
+@login_required
+@require_http_methods(["GET"])
+def categories_api(request):
+    cats = Category.objects.filter(user=request.user).order_by('nome')
+    data = [{"id": c.id, "nome": c.nome, "cor": c.cor} for c in cats]
+    return JsonResponse(data, safe=False)
 
 @login_required
 @require_http_methods(["POST"])

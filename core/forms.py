@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib.auth.models import User
 
-from .models import Card, CardPurchase, RecurringExpense
+from .models import Card, CardPurchase, RecurringExpense, Category
 
 
 class CardForm(forms.ModelForm):
@@ -11,12 +11,51 @@ class CardForm(forms.ModelForm):
 
 
 class CardPurchaseForm(forms.ModelForm):
+    nova_categoria = forms.CharField(required=False,
+                                     widget=forms.TextInput(attrs={'placeholder': 'Ou digite nova categoria'}))
+
     class Meta:
         model = CardPurchase
-        fields = ["cartao", "descricao", "valor_total", "parcelas", "primeiro_vencimento"]
+        # Adicionamos tipo_pagamento e categoria aos campos
+        fields = ["cartao", "descricao", "valor_total", "parcelas", "primeiro_vencimento", "tipo_pagamento",
+                  "categoria"]
         widgets = {
             "primeiro_vencimento": forms.DateInput(attrs={"type": "date"}),
         }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        tipo = cleaned_data.get("tipo_pagamento")
+        cartao = cleaned_data.get("cartao")
+        parcelas = cleaned_data.get("parcelas") or 1
+
+        # Validação: Crédito exige Cartão
+        if tipo == 'CREDITO' and not cartao:
+            self.add_error('cartao', 'Para pagamento no crédito, selecione um cartão.')
+
+        # Se não for crédito, removemos cartão e forçamos 1 parcela
+        if tipo != 'CREDITO':
+            cleaned_data['cartao'] = None
+            cleaned_data['parcelas'] = 1
+
+        return cleaned_data
+
+    def save(self, commit=True):
+        # Lógica para criar categoria nova on-the-fly
+        instance = super().save(commit=False)
+        nova_cat_nome = self.cleaned_data.get('nova_categoria')
+        if nova_cat_nome:
+            # Cria a categoria se o usuário digitou uma nova
+            cat, created = Category.objects.get_or_create(
+                nome=nova_cat_nome,
+                user=instance.user,
+                defaults={'cor': '#6c757d'}  # Cor padrão cinza
+            )
+            instance.categoria = cat
+
+        if commit:
+            instance.save()
+        return instance
 
 
 class RecurringExpenseForm(forms.ModelForm):

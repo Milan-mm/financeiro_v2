@@ -736,26 +736,53 @@ const openConfirmDelete = (message, onConfirm) => {
 const handlePurchaseSubmit = async (event) => {
   event.preventDefault();
   const form = event.target;
+
   if (!form.checkValidity()) {
     form.classList.add("was-validated");
     return;
   }
+
+  // 1. Ler os novos campos do DOM
+  const tipoPagamentoInput = document.querySelector('input[name="tipo_pagamento"]:checked');
+  const tipoPagamento = tipoPagamentoInput ? tipoPagamentoInput.value : 'CREDITO';
+  const newCatName = document.getElementById('purchaseNewCategory').value;
+  const catId = document.getElementById('purchaseCategory').value;
+
+  // 2. Montar o objeto Payload com lógica condicional
   const payload = {
-    cartao_id: Number(elements.purchaseCard.value),
+    // Só envia cartão se for CREDITO
+    cartao_id: tipoPagamento === 'CREDITO' ? Number(elements.purchaseCard.value) : null,
+    tipo_pagamento: tipoPagamento,
     descricao: elements.purchaseDescription.value.trim(),
     valor_total: Number(elements.purchaseTotal.value),
-    parcelas: Number(elements.purchaseInstallments.value),
+    // Se não for crédito, é sempre 1 parcela
+    parcelas: tipoPagamento === 'CREDITO' ? Number(elements.purchaseInstallments.value) : 1,
     primeiro_vencimento: elements.purchaseFirstDue.value,
+    categoria: catId ? Number(catId) : null,
+    nova_categoria: newCatName || null
   };
-  if (!payload.cartao_id) {
-    showToast("Selecione um cartão válido.", "danger");
+
+  // 3. Validação específica
+  if (payload.tipo_pagamento === 'CREDITO' && !payload.cartao_id) {
+    showToast("Selecione um cartão válido para compras no crédito.", "danger");
     return;
   }
+
+  // 4. Item Temporário para a Tabela (Feedback Instantâneo)
   const tempId = `temp-${Date.now()}`;
+
+  // Definimos o nome visual: se tiver cartão usa o nome dele, senão usa o Tipo (ex: "PIX")
+  let displayCardName = "";
+  if (payload.cartao_id) {
+      displayCardName = elements.purchaseCard.selectedOptions[0]?.textContent || "Cartão";
+  } else {
+      displayCardName = payload.tipo_pagamento; // Exibe "PIX", "DEBITO", etc.
+  }
+
   const tempItem = {
     id: tempId,
     cartao_id: payload.cartao_id,
-    cartao_nome: elements.purchaseCard.selectedOptions[0]?.textContent || "",
+    cartao_nome: displayCardName,
     descricao: payload.descricao,
     parcelas: payload.parcelas,
     parcela_atual: 1,
@@ -764,25 +791,54 @@ const handlePurchaseSubmit = async (event) => {
     primeiro_vencimento: payload.primeiro_vencimento,
     vencimento: payload.primeiro_vencimento,
   };
+
   appState.data.purchases.unshift(tempItem);
   renderPurchaseTable();
+
   try {
     await apiFetch("/api/card-purchase/", {
       method: "POST",
       body: JSON.stringify(payload),
     });
+
     showToast("Compra adicionada.");
+
+    // Reset do Formulário e UI
     form.reset();
     form.classList.remove("was-validated");
+
+    // Resetar visual dos campos extras
+    const newCatInput = document.getElementById('purchaseNewCategory');
+    const catSelect = document.getElementById('purchaseCategory');
+    const toggleBtn = document.getElementById('btnToggleNewCat');
+
+    if(newCatInput) newCatInput.style.display = 'none';
+    if(catSelect) catSelect.style.display = 'block';
+    if(toggleBtn) toggleBtn.textContent = '+';
+
+    // Resetar rádio para Crédito
+    const creditRadio = document.getElementById('typeCredit');
+    if(creditRadio) {
+        creditRadio.checked = true;
+        creditRadio.dispatchEvent(new Event('change'));
+    }
+
     bootstrap.Modal.getInstance(document.getElementById("purchaseModal"))?.hide();
+
+    // Recarregar dados reais (importante para pegar a nova categoria criada, se houver)
     await loadMonthData();
+    // Se criou categoria nova, recarrega o select de categorias
+    if (payload.nova_categoria) {
+        loadCategories();
+    }
+
   } catch (error) {
+    // Remove o item temporário se der erro
     appState.data.purchases = appState.data.purchases.filter((item) => item.id !== tempId);
     renderPurchaseTable();
     showToast(`Erro ao salvar compra: ${error.message}`, "danger");
   }
 };
-
 const handleRecurringSubmit = async (event) => {
   event.preventDefault();
   const form = event.target;
@@ -826,6 +882,7 @@ const handleRecurringSubmit = async (event) => {
 };
 
 const bindEvents = () => {
+  // --- Eventos de Navegação e Filtros (Originais) ---
   elements.monthSelect.addEventListener("change", () => {
     appState.month = Number(elements.monthSelect.value);
     loadMonthData();
@@ -865,10 +922,78 @@ const bindEvents = () => {
   document.getElementById("purchaseForm")?.addEventListener("submit", handlePurchaseSubmit);
   document.getElementById("recurringForm")?.addEventListener("submit", handleRecurringSubmit);
 
+  // --- NOVA LÓGICA: Alternar campos por Tipo de Pagamento ---
+  const paymentRadios = document.querySelectorAll('input[name="tipo_pagamento"]');
+  paymentRadios.forEach((radio) => {
+    radio.addEventListener("change", (e) => {
+      const type = e.target.value;
+      // Seleciona elementos com segurança
+      const cardFields = document.getElementById("creditCardFields");
+      const instGroup = document.getElementById("installmentsGroup");
+      const instInput = document.getElementById("purchaseInstallments");
+      const cardInput = document.getElementById("purchaseCard");
+
+      if (type === "CREDITO") {
+        if (cardFields) cardFields.style.display = "block";
+        if (instGroup) instGroup.style.visibility = "visible";
+        if (cardInput) cardInput.setAttribute("required", "required");
+      } else {
+        if (cardFields) cardFields.style.display = "none";
+        if (instGroup) instGroup.style.visibility = "hidden";
+        if (instInput) instInput.value = 1;
+        if (cardInput) {
+          cardInput.removeAttribute("required");
+          cardInput.value = "";
+        }
+      }
+    });
+  });
+
+  // --- NOVA LÓGICA: Alternar Nova Categoria (+ / x) ---
+  const btnToggleCat = document.getElementById("btnToggleNewCat");
+  if (btnToggleCat) {
+    btnToggleCat.addEventListener("click", () => {
+      const select = document.getElementById("purchaseCategory");
+      const input = document.getElementById("purchaseNewCategory");
+
+      if (input.style.display === "none") {
+        // Modo: Digitar nova categoria
+        input.style.display = "block";
+        select.style.display = "none";
+        input.focus();
+        btnToggleCat.textContent = "x";
+      } else {
+        // Modo: Selecionar existente
+        input.style.display = "none";
+        select.style.display = "block";
+        input.value = "";
+        btnToggleCat.textContent = "+";
+      }
+    });
+  }
+
+  // --- Comportamento ao Abrir Modais ---
   document.getElementById("purchaseModal")?.addEventListener("show.bs.modal", (event) => {
+    // 1. Resetar visual para "Crédito" sempre que abrir
+    const creditRadio = document.getElementById("typeCredit");
+    if (creditRadio) {
+      creditRadio.checked = true;
+      creditRadio.dispatchEvent(new Event("change")); // Força atualização dos campos
+    }
+
+    // 2. Resetar visual da Categoria (voltar para select)
+    const inputCat = document.getElementById("purchaseNewCategory");
+    const selectCat = document.getElementById("purchaseCategory");
+    const btnCat = document.getElementById("btnToggleNewCat");
+    if (inputCat) { inputCat.style.display = "none"; inputCat.value = ""; }
+    if (selectCat) selectCat.style.display = "block";
+    if (btnCat) btnCat.textContent = "+";
+
+    // 3. Lógica original de parcelas (Single vs Installments)
     const trigger = event.relatedTarget;
     const mode = trigger?.dataset.mode;
     const installmentsInput = elements.purchaseInstallments;
+
     if (mode === "single") {
       installmentsInput.value = 1;
       installmentsInput.setAttribute("readonly", "readonly");
@@ -876,7 +1001,11 @@ const bindEvents = () => {
       installmentsInput.removeAttribute("readonly");
       installmentsInput.value = Math.max(Number(installmentsInput.value) || 2, 2);
     }
-    elements.purchaseDescription.focus();
+
+    // Tenta focar na descrição
+    if (elements.purchaseDescription) {
+        elements.purchaseDescription.focus();
+    }
   });
 
   document.getElementById("recurringModal")?.addEventListener("shown.bs.modal", () => {

@@ -13,13 +13,28 @@ class Card(models.Model):
 
 
 class CardPurchase(models.Model):
-    cartao = models.ForeignKey(Card, on_delete=models.CASCADE, related_name="compras")
+    # Opções de pagamento
+    TIPO_CHOICES = [
+        ('CREDITO', 'Crédito'),
+        ('DEBITO', 'Débito'),
+        ('PIX', 'Pix'),
+        ('DINHEIRO', 'Dinheiro'),
+    ]
+
+    # Cartão agora é opcional (null=True, blank=True)
+    cartao = models.ForeignKey(Card, on_delete=models.CASCADE, related_name="compras", null=True, blank=True)
+
+    # Novo campo para saber o tipo
+    tipo_pagamento = models.CharField(max_length=10, choices=TIPO_CHOICES, default='CREDITO')
+
     descricao = models.CharField(max_length=200)
     valor_total = models.DecimalField(max_digits=10, decimal_places=2)
     parcelas = models.PositiveIntegerField(default=1)
     primeiro_vencimento = models.DateField()
     criado_em = models.DateTimeField(auto_now_add=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
+
+    # Categoria já existia, mas vamos garantir que está acessível
     categoria = models.ForeignKey("Category", on_delete=models.SET_NULL, null=True, blank=True)
 
     @property
@@ -29,7 +44,8 @@ class CardPurchase(models.Model):
         return self.valor_total / self.parcelas
 
     def __str__(self):
-        return f"{self.descricao} ({self.cartao})"
+        origem = self.cartao.nome if self.cartao else self.tipo_pagamento
+        return f"{self.descricao} ({origem})"
 
 
 class RecurringExpense(models.Model):

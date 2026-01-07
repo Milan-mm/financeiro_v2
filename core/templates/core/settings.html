@@ -136,18 +136,33 @@
 
               <section class="card border-0 shadow-sm">
                 <div class="card-body">
-                  <h2 class="h6 fw-bold">Remover usuário</h2>
-                  <p class="text-muted small">Revogue o acesso de um usuário.</p>
-                  <form>
-                    <div class="mb-3">
-                      <label class="form-label">Usuário</label>
-                      <select class="form-select">
-                        <option>Selecionar usuário</option>
-                      </select>
-                    </div>
-                    <button class="btn btn-outline-danger" type="button">Remover</button>
-                  </form>
-                </div>
+  <h2 class="h6 fw-bold">Remover usuário</h2>
+  <p class="text-muted small">Revogue o acesso de um usuário.</p>
+
+  <form method="post" onsubmit="return confirm('Tem certeza absoluta que deseja remover este usuário? Esta ação não pode ser desfeita.');">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="delete_user">
+
+    <div class="mb-3">
+      <label class="form-label">Usuário</label>
+      <select class="form-select" name="user_id" required>
+        <option value="" selected disabled>Selecionar usuário</option>
+        {% for u in users %}
+          <option value="{{ u.id }}">
+            {{ u.email|default:u.username }}
+            {% if u.first_name %}({{ u.first_name }}){% endif %}
+          </option>
+        {% empty %}
+          <option disabled>Nenhum outro usuário encontrado</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <button class="btn btn-outline-danger" type="submit">
+      <i class="bi bi-trash me-2"></i>Remover
+    </button>
+  </form>
+</div>
               </section>
             </div>
           </div>
