@@ -12,7 +12,7 @@ from django.shortcuts import redirect, render
 from django.views.decorators.http import require_http_methods
 
 from .forms import CardForm, CardPurchaseForm, RecurringExpenseForm, UserRegisterForm
-from .models import Card, CardPurchase, RecurringExpense, RecurringPayment, Category
+from .models import Card, CardPurchase, RecurringExpense, RecurringPayment, Category, SystemLog
 
 
 def login_view(request):
@@ -495,3 +495,71 @@ def recurring_payment_toggle_api(request):
         payment.is_paid = not payment.is_paid
     payment.save(update_fields=["is_paid", "paid_at"])
     return JsonResponse({"is_paid": payment.is_paid})
+
+
+@login_required
+def system_logs_view(request):
+    return render(request, "core/system_logs.html")
+
+
+@require_http_methods(["POST"])
+def log_error_api(request):
+    payload = _json_body(request)
+    message = payload.get("message") or "Erro no frontend"
+    details = payload.get("details") or ""
+    level = payload.get("level") or SystemLog.LEVEL_ERROR
+    if level not in {choice[0] for choice in SystemLog.LEVEL_CHOICES}:
+        level = SystemLog.LEVEL_ERROR
+
+    SystemLog.objects.create(
+        level=level,
+        source=SystemLog.SOURCE_FRONTEND,
+        message=message[:255],
+        details=details,
+    )
+    return JsonResponse({"created": True})
+
+
+@login_required
+@require_http_methods(["GET"])
+def system_logs_api(request):
+    logs = SystemLog.objects.all()
+    data = [
+        {
+            "id": log.id,
+            "level": log.level,
+            "level_label": log.get_level_display(),
+            "source": log.source,
+            "source_label": log.get_source_display(),
+            "message": log.message,
+            "details": log.details,
+            "created_at": log.created_at.isoformat(),
+            "is_resolved": log.is_resolved,
+        }
+        for log in logs
+    ]
+    return JsonResponse(data, safe=False)
+
+
+@login_required
+@require_http_methods(["PATCH", "DELETE"])
+def system_log_detail_api(request, log_id):
+    log = get_object_or_404(SystemLog, pk=log_id)
+    if request.method == "DELETE":
+        log.delete()
+        return JsonResponse({"deleted": True})
+
+    payload = _json_body(request)
+    is_resolved = payload.get("is_resolved")
+    if is_resolved is None:
+        is_resolved = True
+    log.is_resolved = bool(is_resolved)
+    log.save(update_fields=["is_resolved"])
+    return JsonResponse({"updated": True, "is_resolved": log.is_resolved})
+
+
+@login_required
+@require_http_methods(["GET"])
+def system_logs_pending_count_api(request):
+    count = SystemLog.objects.filter(is_resolved=False).count()
+    return JsonResponse({"pending": count})

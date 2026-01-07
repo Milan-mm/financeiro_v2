@@ -88,3 +88,35 @@ class Category(models.Model):
 
     def __str__(self):
         return self.nome
+
+
+class SystemLog(models.Model):
+    LEVEL_ERROR = "ERRO"
+    LEVEL_WARNING = "AVISO"
+    LEVEL_INFO = "INFO"
+    SOURCE_BACKEND = "BACKEND"
+    SOURCE_FRONTEND = "FRONTEND"
+
+    LEVEL_CHOICES = [
+        (LEVEL_ERROR, "Erro"),
+        (LEVEL_WARNING, "Aviso"),
+        (LEVEL_INFO, "Info"),
+    ]
+
+    SOURCE_CHOICES = [
+        (SOURCE_BACKEND, "Backend"),
+        (SOURCE_FRONTEND, "Frontend"),
+    ]
+
+    level = models.CharField(max_length=10, choices=LEVEL_CHOICES, default=LEVEL_ERROR)
+    source = models.CharField(max_length=10, choices=SOURCE_CHOICES)
+    message = models.CharField(max_length=255)
+    details = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_resolved = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.get_level_display()} - {self.message}"

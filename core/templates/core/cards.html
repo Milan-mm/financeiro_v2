@@ -49,6 +49,13 @@
               <span>Configurações</span>
             </a>
           </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'system-logs' %}">
+              <i class="bi bi-bug"></i>
+              <span>Logs do Sistema</span>
+              <span class="badge rounded-pill bg-danger ms-auto logs-pending-badge d-none">0</span>
+            </a>
+          </li>
           <li class="nav-item mt-auto">
             <a class="nav-link text-danger" href="{% url 'logout' %}">
               <i class="bi bi-box-arrow-right"></i>
@@ -153,6 +160,13 @@
               <span>Configurações</span>
             </a>
           </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'system-logs' %}">
+              <i class="bi bi-bug"></i>
+              <span>Logs do Sistema</span>
+              <span class="badge rounded-pill bg-danger ms-auto logs-pending-badge d-none">0</span>
+            </a>
+          </li>
           <li class="nav-item mt-3">
             <a class="nav-link text-danger" href="{% url 'logout' %}">
               <i class="bi bi-box-arrow-right"></i>
@@ -196,5 +210,6 @@
       integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
       crossorigin="anonymous"
     ></script>
+    <script src="{% static 'core/app.js' %}"></script>
   </body>
 </html>

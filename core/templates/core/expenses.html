@@ -49,6 +49,13 @@
               <span>Configurações</span>
             </a>
           </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'system-logs' %}">
+              <i class="bi bi-bug"></i>
+              <span>Logs do Sistema</span>
+              <span class="badge rounded-pill bg-danger ms-auto logs-pending-badge d-none">0</span>
+            </a>
+          </li>
           <li class="nav-item mt-auto">
             <a class="nav-link text-danger" href="{% url 'logout' %}">
               <i class="bi bi-box-arrow-right"></i>
@@ -281,6 +288,13 @@
             <a class="nav-link" href="{% url 'settings' %}">
               <i class="bi bi-gear"></i>
               <span>Configurações</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'system-logs' %}">
+              <i class="bi bi-bug"></i>
+              <span>Logs do Sistema</span>
+              <span class="badge rounded-pill bg-danger ms-auto logs-pending-badge d-none">0</span>
             </a>
           </li>
           <li class="nav-item mt-3">
