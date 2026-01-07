@@ -41,19 +41,30 @@ def analyze_invoice_text(text_content):
 
     try:
         response = client.chat.completions.create(
-            model="gpt-4o-mini",  # Modelo rápido e barato
+            model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}],
-            temperature=0,  # Determinístico (sem criatividade)
+            temperature=0,
         )
 
         content = response.choices[0].message.content
 
-        # Limpeza caso a IA devolva blocos de código ```json ... ```
+        # Limpeza caso a IA devolva blocos de código
         if "```" in content:
             content = content.replace("```json", "").replace("```", "")
 
         data = json.loads(content)
-        print(f"--- DEBUG AI: Sucesso! {len(data)} itens extraídos. ---")
+
+        # --- AJUSTE FORÇADO DE DATA ---
+        # Sobrescreve a data original da compra pela data de hoje.
+        # Isso garante que a compra entre na dashboard/fatura atual,
+        # independentemente de quando ela foi feita no passado.
+        today_iso = date.today().isoformat()
+
+        for item in data:
+            item["data"] = today_iso
+        # ------------------------------
+
+        print(f"--- DEBUG AI: Sucesso! {len(data)} itens extraídos. (Todas as datas forçadas para {today_iso}) ---")
         return data
 
     except Exception as e:

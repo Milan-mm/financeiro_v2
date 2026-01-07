@@ -120,3 +120,19 @@ class SystemLog(models.Model):
 
     def __str__(self):
         return f"{self.get_level_display()} - {self.message}"
+
+
+# core/models.py
+
+class QuickExpense(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    data = models.DateField(auto_now_add=True)
+    descricao = models.CharField(max_length=255)
+    valor = models.DecimalField(max_digits=10, decimal_places=2)
+    categoria_texto = models.CharField(max_length=100, null=True, blank=True)
+
+    # Campo para saber se isso já foi oficializado/lançado na fatura depois
+    processado = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"{self.data} - {self.descricao} - R$ {self.valor}"

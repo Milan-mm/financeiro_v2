@@ -602,6 +602,7 @@ def categories_api(request):
     data = [{"id": c.id, "nome": c.nome, "cor": c.cor} for c in cats]
     return JsonResponse(data, safe=False)
 
+
 @login_required
 @require_http_methods(["POST"])
 def recurring_payment_toggle_api(request):

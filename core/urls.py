@@ -33,5 +33,6 @@ urlpatterns = [
         views.recurring_payment_toggle_api,
         name="recurring-payment-toggle",
     ),
+path('webhooks/twilio/', views.twilio_webhook, name='twilio_webhook'),
     path("api/categories/", views.categories_api, name="categories-api"), # <--- ESTA LINHA É OBRIGATÓRIA
 ]
