@@ -210,6 +210,8 @@ def update_recurring_value_api(request, pk):
 import json
 import logging
 import uuid
+from decimal import Decimal
+from django.db import transaction
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.contrib.auth.decorators import login_required
@@ -258,59 +260,82 @@ def batch_create_purchases_api(request):
         card = Card.objects.get(id=card_id, user=request.user)
 
         saved_count = 0
-        print(f"--- DEBUG BATCH: Iniciando gravação de {len(items)} itens no cartão {card.nome} ---")
 
-        for item in items:
-            context_info = {
-                "descricao": str(item.get("descricao", ""))[:60],
-                "data": item.get("data"),
-                "parcelas": item.get("parcelas", 1),
-                "valor": item.get("valor"),
-                "valor_total_compra": item.get("valor_total_compra") or item.get("valor_total_da_compra"),
-                "regra": None,
+        with transaction.atomic():
+            for item in items:
+                descricao = item.get("descricao")
+                valor = item.get("valor")
+                data_compra = item.get("data")
+                parcelas = item.get("parcelas", 1)
+
+                if not descricao or valor is None or not data_compra:
+                    raise ValueError("Item inválido: descricao, valor e data são obrigatórios.")
+
+                valor_decimal = Decimal(str(valor))
+                valor_total_compra = item.get("valor_total_compra") or item.get("valor_total_da_compra")
+
+                context_info = {
+                    "descricao": str(descricao)[:60],
+                    "data": data_compra,
+                    "parcelas": parcelas,
+                    "valor": str(valor_decimal),
+                    "valor_total_compra": valor_total_compra,
+                    "regra": None,
+                }
+
+                category = None
+                if item.get("category_id"):
+                    try:
+                        category = Category.objects.get(
+                            id=item["category_id"],
+                            user=request.user,
+                        )
+                    except Category.DoesNotExist:
+                        raise ValueError("Categoria inválida para o usuário.")
+
+                valor_total, _valor_parcela, regra = calculate_installment_values(
+                    valor_decimal,
+                    parcelas,
+                    valor_total_compra=valor_total_compra,
+                )
+                context_info["regra"] = regra
+
+                CardPurchase.objects.create(
+                    user=request.user,
+                    cartao=card,
+                    descricao=descricao,
+                    valor_total=valor_total,
+                    parcelas=parcelas,
+                    primeiro_vencimento=data_compra,  # O front deve mandar a data correta
+                    categoria=category,
+                    tipo_pagamento="CREDITO",  # Assumindo crédito para importação de fatura
+                )
+                saved_count += 1
+
+        total_now = CardPurchase.objects.filter(user=request.user, cartao=card).count()
+        return JsonResponse(
+            {
+                "status": "ok",
+                "count": saved_count,
+                "total_now": total_now,
+                "handler": "batch_create_purchases_api_v2",
             }
-
-            # Tenta buscar a categoria se foi enviada
-            category = None
-            if item.get('category_id'):
-                try:
-                    category = Category.objects.get(id=item['category_id'])
-                except Category.DoesNotExist:
-                    pass
-
-            valor_total, valor_parcela, regra = calculate_installment_values(
-                item.get("valor"),
-                item.get("parcelas", 1),
-                valor_total_compra=context_info["valor_total_compra"],
-            )
-            context_info["regra"] = regra
-
-            CardPurchase.objects.create(
-                user=request.user,
-                cartao=card,
-                descricao=item['descricao'],
-                valor_total=valor_total,
-                parcelas=item.get('parcelas', 1),
-                primeiro_vencimento=item['data'],  # O front deve mandar a data correta
-                categoria=category,
-                tipo_pagamento='CREDITO'  # Assumindo crédito para importação de fatura
-            )
-            saved_count += 1
-
-        print(f"--- DEBUG BATCH: {saved_count} itens salvos com sucesso. ---")
-        return JsonResponse({"status": "ok", "count": saved_count})
+        )
 
     except Card.DoesNotExist:
         return JsonResponse({"error": "Cartão não encontrado"}, status=404)
     except Exception:
-        error_id = uuid.uuid4().hex
+        error_id = uuid.uuid4().hex[:10]
         logger.exception(
-            "Erro ao salvar importação via IA [error_id=%s] context=%s",
+            "IMPORT_SAVE_FAILED error_id=%s user_id=%s card_id=%s items=%s context=%s",
             error_id,
+            request.user.id,
+            card_id,
+            len(items) if isinstance(items, list) else None,
             context_info,
         )
         return JsonResponse(
-            {"error": "Erro ao salvar importação", "error_id": error_id},
+            {"error": "Falha ao salvar importação", "error_id": error_id},
             status=500,
         )
 
