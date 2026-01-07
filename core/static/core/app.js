@@ -61,21 +61,31 @@ const apiFetch = async (url, options = {}) => {
   if (csrfToken) {
     headers["X-CSRFToken"] = csrfToken;
   }
+
   const response = await fetch(url, {
     credentials: "same-origin",
     ...options,
     headers,
   });
+
   if (!response.ok) {
+    // CORREÇÃO: Lemos como texto puro primeiro para não travar o stream
+    const textData = await response.text();
     let errorDetail = "";
+
     try {
-      const data = await response.json();
-      errorDetail = data.error || JSON.stringify(data);
+      // Tentamos converter manualmente para JSON
+      const data = JSON.parse(textData);
+      errorDetail = data.error || data.detail || JSON.stringify(data);
     } catch (error) {
-      errorDetail = await response.text();
+      // Se falhar (ex: é uma página HTML de erro 404 ou 500), usamos o texto ou o status
+      // Cortamos o texto para não encher o alerta com HTML gigante
+      errorDetail = `Erro ${response.status} no servidor.`;
+      console.error("Conteúdo do erro não-JSON:", textData);
     }
-    throw new Error(errorDetail || "Erro inesperado.");
+    throw new Error(errorDetail);
   }
+
   return response.json();
 };
 

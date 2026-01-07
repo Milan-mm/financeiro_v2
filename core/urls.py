@@ -24,4 +24,5 @@ urlpatterns = [
         views.recurring_payment_toggle_api,
         name="recurring-payment-toggle",
     ),
+    path("api/categories/", views.categories_api, name="categories-api"), # <--- ESTA LINHA É OBRIGATÓRIA
 ]
