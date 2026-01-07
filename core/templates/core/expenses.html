@@ -82,24 +82,28 @@
         </header>
 
         <div class="container-xxl py-4">
-          <header class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3 mb-4">
-            <div>
-              <p class="text-uppercase text-muted fw-semibold small mb-1">Lançar contas</p>
-              <h1 class="h3 fw-bold mb-1">Registre despesas do mês</h1>
-              <p class="text-muted mb-0">Lance contas à vista, parceladas ou recorrentes.</p>
-            </div>
-            <div class="d-flex flex-wrap gap-2">
-              <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#purchaseModal" data-mode="single">
-                <i class="bi bi-check2-circle me-2"></i>À vista
-              </button>
-              <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#purchaseModal" data-mode="installments">
-                <i class="bi bi-layers me-2"></i>Parceladas
-              </button>
-              <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#recurringModal">
-                <i class="bi bi-arrow-repeat me-2"></i>Recorrente
-              </button>
-            </div>
-          </header>
+<header class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3 mb-4">
+  <div>
+    <p class="text-uppercase text-muted fw-semibold small mb-1">Lançar contas</p>
+    <h1 class="h3 fw-bold mb-1">Registre despesas do mês</h1>
+    <p class="text-muted mb-0">Lance contas à vista, parceladas ou recorrentes.</p>
+  </div>
+  <div class="d-flex flex-wrap gap-2">
+
+    <button class="btn btn-outline-dark" data-bs-toggle="modal" data-bs-target="#importModal">
+      <i class="bi bi-magic me-2"></i>Importar Fatura
+    </button>
+    <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#purchaseModal" data-mode="single">
+      <i class="bi bi-check2-circle me-2"></i>À vista
+    </button>
+    <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#purchaseModal" data-mode="installments">
+      <i class="bi bi-layers me-2"></i>Parceladas
+    </button>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#recurringModal">
+      <i class="bi bi-arrow-repeat me-2"></i>Recorrente
+    </button>
+  </div>
+</header>
 
           <section class="row g-3 mb-4" id="summaryCards">
             <div class="col-md-4">

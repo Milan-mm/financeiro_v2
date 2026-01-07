@@ -26,6 +26,8 @@ urlpatterns = [
         views.recurring_expense_detail_api,
         name="recurring-expense-detail",
     ),
+    path("api/import/parse/", views.parse_invoice_api, name="import-parse"),
+    path("api/import/save/", views.batch_create_purchases_api, name="import-save"),
     path(
         "api/recurring-payment-toggle/",
         views.recurring_payment_toggle_api,

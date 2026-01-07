@@ -108,6 +108,138 @@ const escapeHtml = (value) =>
 
 let isSendingFrontendLog = false;
 
+
+let importedItems = []; // Guarda os dados temporários da IA
+
+// 1. Enviar texto para a IA
+const analyzeImportText = async () => {
+    const text = document.getElementById('importText').value;
+    if (!text.trim()) return alert("Cole algum texto primeiro.");
+
+    // UI Updates
+    document.getElementById('stepPaste').classList.add('d-none');
+    document.getElementById('importLoading').classList.remove('d-none');
+
+    try {
+        const data = await apiFetch('/api/import/parse/', {
+            method: 'POST',
+            body: JSON.stringify({ text: text })
+        });
+
+        importedItems = data;
+        renderImportTable();
+
+        // Popula o select de cartões do modal (copiando do appState)
+        const cardSelect = document.getElementById('importCardSelect');
+        cardSelect.innerHTML = '<option value="">Selecione o Cartão...</option>';
+        appState.data.cards.forEach(c => {
+            cardSelect.innerHTML += `<option value="${c.id}">${c.nome}</option>`;
+        });
+
+        // Mostra a tela de revisão
+        document.getElementById('importLoading').classList.add('d-none');
+        document.getElementById('stepReview').classList.remove('d-none');
+
+    } catch (error) {
+        alert("Erro na análise: " + error.message);
+        resetImportModal();
+    }
+};
+
+// 2. Renderizar a Tabela de Revisão
+const renderImportTable = async () => {
+    const tbody = document.getElementById('importTableBody');
+    tbody.innerHTML = '';
+
+    // Precisamos das categorias. Se não estiverem carregadas, carrega.
+    // (Assumindo que tens uma variavel global de categorias ou podes buscar de novo)
+    const categories = await apiFetch('/api/categories/');
+    const catOptions = categories.map(c => `<option value="${c.id}">${c.nome}</option>`).join('');
+
+    importedItems.forEach((item, index) => {
+        const tr = document.createElement('tr');
+
+        // Badge de Tipo (Online/Fisica)
+        let badgeClass = "bg-secondary";
+        if (item.tipo_compra === "Online") badgeClass = "bg-info";
+        if (item.tipo_compra === "Física") badgeClass = "bg-warning text-dark";
+
+        tr.innerHTML = `
+            <td><input type="date" class="form-control form-control-sm" value="${item.data}" id="imp-date-${index}"></td>
+            <td>
+                <input type="text" class="form-control form-control-sm mb-1" value="${item.descricao}" id="imp-desc-${index}">
+                <span class="badge ${badgeClass}" style="font-size:0.7em">${item.tipo_compra || '?'}</span>
+            </td>
+             <td>
+                <span class="badge bg-light text-dark border">x${item.parcelas}</span>
+            </td>
+            <td>
+                <input type="number" step="0.01" class="form-control form-control-sm" value="${item.valor}" id="imp-val-${index}">
+            </td>
+            <td>
+                <select class="form-select form-select-sm" id="imp-cat-${index}">
+                    <option value="">Sem Categoria</option>
+                    ${catOptions}
+                </select>
+            </td>
+            <td>
+                <button class="btn btn-sm text-danger" onclick="removeImportItem(${index})"><i class="bi bi-x-lg"></i></button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+};
+
+// 3. Remover item da lista (antes de salvar)
+const removeImportItem = (index) => {
+    importedItems.splice(index, 1);
+    renderImportTable(); // Redesenha
+};
+
+// 4. Salvar Lote
+const saveImportBatch = async () => {
+    const cardId = document.getElementById('importCardSelect').value;
+    if (!cardId) return alert("Por favor, selecione o cartão para estas compras.");
+
+    // Reconstrói o array com os valores editados nos inputs
+    const finalItems = importedItems.map((_, index) => ({
+        data: document.getElementById(`imp-date-${index}`).value,
+        descricao: document.getElementById(`imp-desc-${index}`).value,
+        valor: parseFloat(document.getElementById(`imp-val-${index}`).value),
+        parcelas: importedItems[index].parcelas, // Mantemos original ou podes por input
+        category_id: document.getElementById(`imp-cat-${index}`).value
+    }));
+
+    setLoadingState(true);
+    try {
+        const result = await apiFetch('/api/import/save/', {
+            method: 'POST',
+            body: JSON.stringify({
+                card_id: cardId,
+                items: finalItems
+            })
+        });
+
+        showToast(`${result.count} compras importadas com sucesso!`);
+        bootstrap.Modal.getInstance(document.getElementById('importModal')).hide();
+        resetImportModal();
+        loadMonthData(); // Atualiza a dashboard
+
+    } catch (error) {
+        showToast("Erro ao salvar: " + error.message, "danger");
+    } finally {
+        setLoadingState(false);
+    }
+};
+
+const resetImportModal = () => {
+    document.getElementById('stepPaste').classList.remove('d-none');
+    document.getElementById('stepReview').classList.add('d-none');
+    document.getElementById('importLoading').classList.add('d-none');
+    document.getElementById('importText').value = '';
+    importedItems = [];
+};
+
 const sendFrontendLog = async ({ message, details, level = "ERRO" }) => {
   if (isSendingFrontendLog) return;
   isSendingFrontendLog = true;
