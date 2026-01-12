@@ -3,6 +3,7 @@ import json
 from openai import OpenAI
 from datetime import date
 from django.conf import settings
+import re
 
 
 def analyze_invoice_text(text_content):
@@ -58,6 +59,8 @@ def analyze_invoice_text(text_content):
 
         data = json.loads(content)
 
+        date_pattern = re.compile(r"^(?P<day>\d{1,2})/(?P<month>\d{1,2})(?:/(?P<year>\d{2,4}))?$")
+
         for item in data:
             parcelas = item.get("parcelas", 1)
             try:
@@ -69,14 +72,31 @@ def analyze_invoice_text(text_content):
             raw_date = item.get("data")
             if not raw_date:
                 continue
+
+            parsed_date = None
             try:
                 parsed_date = date.fromisoformat(raw_date)
             except ValueError:
+                match = date_pattern.match(str(raw_date).strip())
+                if match:
+                    day = int(match.group("day"))
+                    month = int(match.group("month"))
+                    year = match.group("year")
+                    year = int(year) if year else current_year
+                    if year < 100:
+                        year += 2000
+                    parsed_date = date(year, month, day)
+            if not parsed_date:
                 continue
+
+            if parsed_date.year > current_year:
+                parsed_date = date(current_year, parsed_date.month, parsed_date.day)
 
             if parsed_date > today:
                 adjusted_date = date(parsed_date.year - 1, parsed_date.month, parsed_date.day)
                 item["data"] = adjusted_date.isoformat()
+            else:
+                item["data"] = parsed_date.isoformat()
 
         print(f"--- DEBUG AI: Sucesso! {len(data)} itens extraídos. ---")
         return data
