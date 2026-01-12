@@ -16,7 +16,8 @@ def analyze_invoice_text(text_content):
         return []
 
     client = OpenAI(api_key=api_key)
-    current_year = date.today().year
+    today = date.today()
+    current_year = today.year
 
     print(f"--- DEBUG AI: Iniciando análise de texto ({len(text_content)} chars) ---")
 
@@ -29,8 +30,11 @@ def analyze_invoice_text(text_content):
        - Se começar com "3", é uma compra FÍSICA (Loja).
     2. O ano atual é {current_year}. Formate datas como YYYY-MM-DD.
     3. Ignore linhas que sejam apenas pagamentos de fatura ou saldos.
-    4. Se houver parcelas (ex: "02/10"), extraia o total de parcelas.
-    5. Converta valores para float (ex: 59,90 vira 59.90).
+    4. Regra de parcelas: Se houver algo como "NN/MM" no final da linha e
+       já existir outra data na linha (DD/MM), trate "NN/MM" como parcela
+       (ex: 09/12 = parcela 9 de 12). Use o total de parcelas = 12.
+    5. Se houver parcelas (ex: "02/10"), extraia o total de parcelas.
+    6. Converta valores para float (ex: 59,90 vira 59.90).
 
     TEXTO BRUTO:
     {text_content}
@@ -54,17 +58,27 @@ def analyze_invoice_text(text_content):
 
         data = json.loads(content)
 
-        # --- AJUSTE FORÇADO DE DATA ---
-        # Sobrescreve a data original da compra pela data de hoje.
-        # Isso garante que a compra entre na dashboard/fatura atual,
-        # independentemente de quando ela foi feita no passado.
-        today_iso = date.today().isoformat()
-
         for item in data:
-            item["data"] = today_iso
-        # ------------------------------
+            parcelas = item.get("parcelas", 1)
+            try:
+                parcelas = int(parcelas)
+            except (TypeError, ValueError):
+                parcelas = 1
+            item["parcelas"] = parcelas if parcelas > 0 else 1
 
-        print(f"--- DEBUG AI: Sucesso! {len(data)} itens extraídos. (Todas as datas forçadas para {today_iso}) ---")
+            raw_date = item.get("data")
+            if not raw_date:
+                continue
+            try:
+                parsed_date = date.fromisoformat(raw_date)
+            except ValueError:
+                continue
+
+            if parsed_date > today:
+                adjusted_date = date(parsed_date.year - 1, parsed_date.month, parsed_date.day)
+                item["data"] = adjusted_date.isoformat()
+
+        print(f"--- DEBUG AI: Sucesso! {len(data)} itens extraídos. ---")
         return data
 
     except Exception as e:

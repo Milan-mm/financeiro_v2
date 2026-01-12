@@ -235,6 +235,38 @@ def parse_invoice_api(request):
             return JsonResponse({"error": "Texto vazio"}, status=400)
 
         data = analyze_invoice_text(text)
+        for item in data:
+            item["is_duplicate"] = False
+            descricao = (item.get("descricao") or "").strip()
+            valor = item.get("valor")
+            data_compra = item.get("data")
+
+            if not descricao or valor is None or not data_compra:
+                continue
+
+            try:
+                compra_date = date.fromisoformat(data_compra)
+            except ValueError:
+                continue
+
+            try:
+                valor_decimal = Decimal(str(valor))
+            except (TypeError, ValueError):
+                continue
+
+            existing_purchases = CardPurchase.objects.filter(
+                user=request.user,
+                descricao__iexact=descricao,
+                primeiro_vencimento__year=compra_date.year,
+                primeiro_vencimento__month=compra_date.month,
+            )
+
+            for purchase in existing_purchases:
+                parcelas = purchase.parcelas or 1
+                valor_parcela = purchase.valor_total / parcelas
+                if abs(valor_parcela - valor_decimal) <= Decimal("0.01"):
+                    item["is_duplicate"] = True
+                    break
         return JsonResponse(data, safe=False)
     except Exception:
         error_id = uuid.uuid4().hex

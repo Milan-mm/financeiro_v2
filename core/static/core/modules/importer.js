@@ -80,17 +80,25 @@ const renderImportTable = async () => {
 
     importedItems.forEach((item, index) => {
         const tr = document.createElement('tr');
+        if (item.is_duplicate) {
+            tr.classList.add('table-danger');
+        }
 
         let badgeClass = "bg-secondary";
         if (item.tipo_compra === "Online") badgeClass = "bg-info";
         if (item.tipo_compra === "Física") badgeClass = "bg-warning text-dark";
 
         // Adicionamos a estrutura de Toggle na coluna de Categoria (coluna 5)
+        const duplicateBadge = item.is_duplicate
+            ? '<span class="badge bg-danger ms-1" style="font-size:0.7em">Duplicada</span>'
+            : '';
+
         tr.innerHTML = `
             <td><input type="date" class="form-control form-control-sm" value="${item.data}" id="imp-date-${index}"></td>
             <td>
                 <input type="text" class="form-control form-control-sm mb-1" value="${item.descricao}" id="imp-desc-${index}">
                 <span class="badge ${badgeClass}" style="font-size:0.7em">${item.tipo_compra || '?'}</span>
+                ${duplicateBadge}
             </td>
              <td>
                 <span class="badge bg-light text-dark border">x${item.parcelas}</span>
