@@ -220,7 +220,7 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.contrib.auth.decorators import login_required
 from .installments import calculate_installment_values
-from .utils_ai import analyze_invoice_text
+from .utils_ai import analyze_invoice_text, resolve_import_date
 from .models import CardPurchase, Card, Category
 
 logger = logging.getLogger(__name__)
@@ -289,6 +289,7 @@ def batch_create_purchases_api(request):
         data = json.loads(request.body)
         card_id = data.get('card_id')
         items = data.get('items', [])
+        override_today = bool(data.get("override_today"))
 
         if not card_id or not items:
             return JsonResponse({"error": "Dados incompletos"}, status=400)
@@ -297,6 +298,7 @@ def batch_create_purchases_api(request):
 
         saved_count = 0
 
+        override_count = 0
         with transaction.atomic():
             for item in items:
                 descricao = item.get("descricao")
@@ -310,9 +312,18 @@ def batch_create_purchases_api(request):
                 valor_decimal = Decimal(str(valor))
                 valor_total_compra = item.get("valor_total_compra") or item.get("valor_total_da_compra")
 
+                try:
+                    parsed_date = date.fromisoformat(str(data_compra))
+                except ValueError as exc:
+                    raise ValueError("Item inválido: data deve estar no formato YYYY-MM-DD.") from exc
+
+                resolved_date = resolve_import_date(parsed_date, override_today)
+                if override_today:
+                    override_count += 1
+
                 context_info = {
                     "descricao": str(descricao)[:60],
-                    "data": data_compra,
+                    "data": resolved_date.isoformat(),
                     "parcelas": parcelas,
                     "valor": str(valor_decimal),
                     "valor_total_compra": valor_total_compra,
@@ -342,12 +353,19 @@ def batch_create_purchases_api(request):
                     descricao=descricao,
                     valor_total=valor_total,
                     parcelas=parcelas,
-                    primeiro_vencimento=data_compra,  # O front deve mandar a data correta
+                    primeiro_vencimento=resolved_date,  # O front deve mandar a data correta
                     categoria=category,
                     tipo_pagamento="CREDITO",  # Assumindo crédito para importação de fatura
                 )
                 saved_count += 1
 
+        logger.info(
+            "IMPORT_OVERRIDE user_id=%s card_id=%s override_today=%s override_count=%s",
+            request.user.id,
+            card_id,
+            override_today,
+            override_count,
+        )
         total_now = CardPurchase.objects.filter(user=request.user, cartao=card).count()
         return JsonResponse(
             {

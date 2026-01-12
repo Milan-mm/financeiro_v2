@@ -4,6 +4,13 @@ from openai import OpenAI
 from datetime import date
 from django.conf import settings
 import re
+from django.utils import timezone
+
+
+def resolve_import_date(parsed_date, override_today):
+    if override_today:
+        return timezone.localdate()
+    return parsed_date
 
 
 def analyze_invoice_text(text_content):

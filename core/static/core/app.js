@@ -343,6 +343,24 @@ const initImporter = (refreshCallback) => {
   if (btnReset) {
     btnReset.addEventListener("click", resetImportModal);
   }
+
+  const overrideCheckbox = document.getElementById("importOverrideToday");
+  if (overrideCheckbox) {
+    overrideCheckbox.addEventListener("change", applyOverrideDates);
+  }
+};
+
+const applyOverrideDates = () => {
+  const overrideCheckbox = document.getElementById("importOverrideToday");
+  if (!overrideCheckbox) return;
+  const useToday = overrideCheckbox.checked;
+  const todayIso = new Date().toISOString().slice(0, 10);
+
+  importedItems.forEach((item, index) => {
+    const input = document.getElementById(`imp-date-${index}`);
+    if (!input) return;
+    input.value = useToday ? todayIso : item.data;
+  });
 };
 
 const analyzeImportText = async () => {
@@ -465,6 +483,8 @@ const renderImportTable = async () => {
       removeImportItem(Number(idx));
     });
   });
+
+  applyOverrideDates();
 };
 
 const removeImportItem = (index) => {
@@ -474,6 +494,7 @@ const removeImportItem = (index) => {
 
 const saveImportBatch = async () => {
   const cardId = document.getElementById("importCardSelect")?.value;
+  const overrideToday = Boolean(document.getElementById("importOverrideToday")?.checked);
   if (!cardId) {
     alert("Por favor, selecione o cartão.");
     return;
@@ -493,6 +514,7 @@ const saveImportBatch = async () => {
       method: "POST",
       body: JSON.stringify({
         card_id: cardId,
+        override_today: overrideToday,
         items: finalItems,
       }),
     });
@@ -521,6 +543,8 @@ const resetImportModal = () => {
   if (textInput) textInput.value = "";
   importedItems = [];
   appState.importer.pendingCategoryIndex = null;
+  const overrideCheckbox = document.getElementById("importOverrideToday");
+  if (overrideCheckbox) overrideCheckbox.checked = false;
 };
 
 const logsState = {

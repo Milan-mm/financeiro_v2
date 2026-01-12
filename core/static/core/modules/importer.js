@@ -28,6 +28,24 @@ export const initImporter = (refreshCallback) => {
     if (btnReset) {
         btnReset.addEventListener('click', resetImportModal);
     }
+
+    const overrideCheckbox = document.getElementById('importOverrideToday');
+    if (overrideCheckbox) {
+        overrideCheckbox.addEventListener('change', applyOverrideDates);
+    }
+};
+
+const applyOverrideDates = () => {
+    const overrideCheckbox = document.getElementById('importOverrideToday');
+    if (!overrideCheckbox) return;
+    const useToday = overrideCheckbox.checked;
+    const todayIso = new Date().toISOString().slice(0, 10);
+
+    importedItems.forEach((item, index) => {
+        const input = document.getElementById(`imp-date-${index}`);
+        if (!input) return;
+        input.value = useToday ? todayIso : item.data;
+    });
 };
 
 // 2. Análise (Envia para o Django/GPT)
@@ -148,11 +166,14 @@ const renderImportTable = async () => {
             removeImportItem(idx);
         });
     });
+
+    applyOverrideDates();
 };
 
 // 4. Salvar Lote (Atualizado para ler o input de nova categoria)
 const saveImportBatch = async () => {
     const cardId = document.getElementById('importCardSelect').value;
+    const overrideToday = Boolean(document.getElementById('importOverrideToday')?.checked);
     if (!cardId) return alert("Por favor, selecione o cartão.");
 
     const finalItems = importedItems.map((_, index) => {
@@ -174,6 +195,7 @@ const saveImportBatch = async () => {
             method: 'POST',
             body: JSON.stringify({
                 card_id: cardId,
+                override_today: overrideToday,
                 items: finalItems
             })
         });
@@ -207,4 +229,6 @@ const resetImportModal = () => {
     document.getElementById('importText').value = '';
     importedItems = [];
     appState.importer.pendingCategoryIndex = null;
+    const overrideCheckbox = document.getElementById('importOverrideToday');
+    if (overrideCheckbox) overrideCheckbox.checked = false;
 };
