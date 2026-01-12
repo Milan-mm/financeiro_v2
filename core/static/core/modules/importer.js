@@ -107,18 +107,13 @@ const renderImportTable = async () => {
                 <input type="number" step="0.01" class="form-control form-control-sm" value="${item.valor}" id="imp-val-${index}">
             </td>
             <td>
-                <div class="d-flex align-items-center">
-                    <select class="form-select form-select-sm" id="imp-cat-${index}" style="display: block;">
+                <div class="d-flex gap-1 align-items-center">
+                    <select class="form-select form-select-sm" id="imp-cat-${index}">
                         <option value="">Sem Categoria</option>
                         ${catOptions}
                     </select>
-                    
-                    <input type="text" class="form-control form-control-sm" id="imp-new-cat-${index}" 
-                           placeholder="Nova categoria..." style="display: none;">
-                    
-                    <button class="btn btn-sm btn-outline-secondary ms-1 btn-toggle-cat" 
-                            type="button" data-index="${index}" title="Criar nova categoria">
-                        <i class="bi bi-plus-lg"></i>
+                    <button type="button" class="btn btn-outline-primary btn-sm add-cat-btn" data-index="${index}">
+                        +
                     </button>
                 </div>
             </td>
@@ -135,31 +130,13 @@ const renderImportTable = async () => {
         }
     });
 
-    // Lógica dos Botões Toggle (+ / x)
-    document.querySelectorAll('.btn-toggle-cat').forEach(btn => {
+    document.querySelectorAll('.add-cat-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
-            const idx = e.currentTarget.dataset.index; // currentTarget é mais seguro para botões com ícones
-            const select = document.getElementById(`imp-cat-${idx}`);
-            const input = document.getElementById(`imp-new-cat-${idx}`);
-            const icon = btn.querySelector('i');
-
-            if (input.style.display === 'none') {
-                // Modo: Criar Nova
-                input.style.display = 'block';
-                select.style.display = 'none';
-                select.value = ""; // Limpa o select
-                input.focus();
-                // Troca ícone para X
-                btn.classList.replace('btn-outline-secondary', 'btn-outline-danger');
-                if(icon) { icon.classList.replace('bi-plus-lg', 'bi-x-lg'); }
-            } else {
-                // Modo: Selecionar Existente
-                input.style.display = 'none';
-                select.style.display = 'block';
-                input.value = ""; // Limpa o input
-                // Troca ícone para +
-                btn.classList.replace('btn-outline-danger', 'btn-outline-secondary');
-                if(icon) { icon.classList.replace('bi-x-lg', 'bi-plus-lg'); }
+            const idx = Number(e.currentTarget.dataset.index);
+            appState.importer.pendingCategoryIndex = idx;
+            const modalElement = document.getElementById('categoryModal');
+            if (modalElement) {
+                bootstrap.Modal.getOrCreateInstance(modalElement).show();
             }
         });
     });
@@ -180,26 +157,14 @@ const saveImportBatch = async () => {
 
     const finalItems = importedItems.map((_, index) => {
         const catSelect = document.getElementById(`imp-cat-${index}`);
-        const catInput = document.getElementById(`imp-new-cat-${index}`);
-
-        // Se o input estiver visível e preenchido, manda 'nova_categoria'
-        // Caso contrário, manda o ID do select
-        let catId = null;
-        let newCatName = null;
-
-        if (catInput && catInput.style.display !== 'none' && catInput.value.trim() !== "") {
-            newCatName = catInput.value.trim();
-        } else if (catSelect) {
-            catId = catSelect.value;
-        }
+        const catId = catSelect ? catSelect.value : null;
 
         return {
             data: document.getElementById(`imp-date-${index}`).value,
             descricao: document.getElementById(`imp-desc-${index}`).value,
             valor: parseFloat(document.getElementById(`imp-val-${index}`).value),
             parcelas: importedItems[index].parcelas,
-            category_id: catId,
-            nova_categoria: newCatName // Campo novo enviado para o backend
+            category_id: catId
         };
     });
 
@@ -241,4 +206,5 @@ const resetImportModal = () => {
     document.getElementById('importLoading').classList.add('d-none');
     document.getElementById('importText').value = '';
     importedItems = [];
+    appState.importer.pendingCategoryIndex = null;
 };

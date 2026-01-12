@@ -33,7 +33,7 @@ export const initPrivacyToggle = () => {
 
 export const setLoadingState = (isLoading) => {
   if (!isLoading) return;
-  elements.purchaseTableBody.innerHTML = `<tr class="skeleton-row"><td colspan="6"><div class="skeleton-line"></div></td></tr>`;
+  elements.purchaseTableBody.innerHTML = `<tr class="skeleton-row"><td colspan="7"><div class="skeleton-line"></div></td></tr>`;
   elements.recurringTableBody.innerHTML = `<tr class="skeleton-row"><td colspan="6"><div class="skeleton-line"></div></td></tr>`;
 };
 

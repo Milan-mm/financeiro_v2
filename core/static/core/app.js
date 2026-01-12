@@ -2,6 +2,9 @@ const appState = {
   year: null,
   month: null,
   categories: [],
+  importer: {
+    pendingCategoryIndex: null,
+  },
   data: {
     cards: [],
     purchases: [],
@@ -215,7 +218,7 @@ const formatDateTime = (dateStr) => {
 
 const setLoadingState = (isLoading) => {
   if (!isLoading) return;
-  elements.purchaseTableBody.innerHTML = `<tr class="skeleton-row"><td colspan="6"><div class="skeleton-line"></div></td></tr>`;
+  elements.purchaseTableBody.innerHTML = `<tr class="skeleton-row"><td colspan="7"><div class="skeleton-line"></div></td></tr>`;
   elements.recurringTableBody.innerHTML = `<tr class="skeleton-row"><td colspan="6"><div class="skeleton-line"></div></td></tr>`;
 };
 
@@ -264,6 +267,59 @@ const loadCategories = async () => {
     }
   } catch (e) {
     console.error("Erro ao carregar categorias:", e);
+  }
+};
+
+const appendCategoryOption = (select, category) => {
+  if (!select) return;
+  const option = document.createElement("option");
+  option.value = category.id;
+  option.textContent = category.nome;
+  select.appendChild(option);
+};
+
+const updateImportCategorySelects = (category, selectedIndex = null) => {
+  const selects = document.querySelectorAll('#importTableBody select[id^="imp-cat-"]');
+  selects.forEach((select) => {
+    appendCategoryOption(select, category);
+    if (selectedIndex !== null && select.id === `imp-cat-${selectedIndex}`) {
+      select.value = String(category.id);
+    }
+  });
+};
+
+const handleCategorySubmit = async (event) => {
+  event.preventDefault();
+  const form = event.target;
+  const nameInput = document.getElementById("categoryName");
+  const nome = nameInput?.value.trim();
+  if (!nome) {
+    showToast("Informe o nome da categoria.", "danger");
+    return;
+  }
+
+  try {
+    const category = await apiFetch("/api/categories/", {
+      method: "POST",
+      body: JSON.stringify({ nome }),
+    });
+    appState.categories = [...(appState.categories || []), category];
+
+    appendCategoryOption(document.getElementById("purchaseCategory"), category);
+    appendCategoryOption(document.getElementById("recurringCategory"), category);
+
+    const importModal = document.getElementById("importModal");
+    if (importModal?.classList.contains("show")) {
+      const selectedIndex = appState.importer?.pendingCategoryIndex;
+      updateImportCategorySelects(category, selectedIndex ?? null);
+    }
+    appState.importer.pendingCategoryIndex = null;
+
+    form.reset();
+    bootstrap.Modal.getInstance(document.getElementById("categoryModal"))?.hide();
+    showToast("Categoria criada com sucesso.", "success");
+  } catch (error) {
+    showToast(`Erro ao criar categoria: ${error.message}`, "danger");
   }
 };
 
@@ -342,16 +398,24 @@ const renderImportTable = async () => {
 
   importedItems.forEach((item, index) => {
     const tr = document.createElement("tr");
+    if (item.is_duplicate) {
+      tr.classList.add("table-danger");
+    }
 
     let badgeClass = "bg-secondary";
     if (item.tipo_compra === "Online") badgeClass = "bg-info";
     if (item.tipo_compra === "Física") badgeClass = "bg-warning text-dark";
+
+    const duplicateBadge = item.is_duplicate
+      ? '<span class="badge bg-danger ms-1" style="font-size:0.7em">Duplicada</span>'
+      : "";
 
     tr.innerHTML = `
       <td><input type="date" class="form-control form-control-sm" value="${item.data}" id="imp-date-${index}"></td>
       <td>
         <input type="text" class="form-control form-control-sm mb-1" value="${item.descricao}" id="imp-desc-${index}">
         <span class="badge ${badgeClass}" style="font-size:0.7em">${item.tipo_compra || "?"}</span>
+        ${duplicateBadge}
       </td>
       <td>
         <span class="badge bg-light text-dark border">x${item.parcelas}</span>
@@ -360,10 +424,15 @@ const renderImportTable = async () => {
         <input type="number" step="0.01" class="form-control form-control-sm" value="${item.valor}" id="imp-val-${index}">
       </td>
       <td>
-        <select class="form-select form-select-sm" id="imp-cat-${index}">
-          <option value="">Sem Categoria</option>
-          ${catOptions}
-        </select>
+        <div class="d-flex gap-1 align-items-center">
+          <select class="form-select form-select-sm" id="imp-cat-${index}">
+            <option value="">Sem Categoria</option>
+            ${catOptions}
+          </select>
+          <button type="button" class="btn btn-outline-primary btn-sm add-cat-btn" data-index="${index}">
+            +
+          </button>
+        </div>
       </td>
       <td class="text-end">
         <button class="btn btn-sm text-danger btn-remove-item" data-index="${index}">
@@ -372,6 +441,22 @@ const renderImportTable = async () => {
       </td>
     `;
     tbody.appendChild(tr);
+
+    if (item.category_id) {
+      const select = document.getElementById(`imp-cat-${index}`);
+      if (select) select.value = item.category_id;
+    }
+  });
+
+  document.querySelectorAll(".add-cat-btn").forEach((btn) => {
+    btn.addEventListener("click", (event) => {
+      const idx = Number(event.currentTarget.dataset.index);
+      appState.importer.pendingCategoryIndex = idx;
+      const modalElement = document.getElementById("categoryModal");
+      if (modalElement) {
+        bootstrap.Modal.getOrCreateInstance(modalElement).show();
+      }
+    });
   });
 
   document.querySelectorAll(".btn-remove-item").forEach((btn) => {
@@ -435,6 +520,7 @@ const resetImportModal = () => {
   const textInput = document.getElementById("importText");
   if (textInput) textInput.value = "";
   importedItems = [];
+  appState.importer.pendingCategoryIndex = null;
 };
 
 const logsState = {
@@ -914,6 +1000,12 @@ const renderPurchaseTable = () => {
     const cardVariant = getCardBadgeVariant(item.cartao_nome);
     cardCell.innerHTML = `<span class="badge text-bg-${cardVariant}">${item.cartao_nome}</span>`;
 
+    const categoryCell = document.createElement("td");
+    const categoryName = appState.categories?.find((cat) => cat.id === item.categoria_id)?.nome;
+    categoryCell.innerHTML = categoryName
+      ? `<span class="badge bg-secondary">${categoryName}</span>`
+      : '<span class="text-muted">-</span>';
+
     const installmentCell = document.createElement("td");
     if (item.parcelas === 1) {
       installmentCell.innerHTML = `
@@ -953,7 +1045,15 @@ const renderPurchaseTable = () => {
       </div>
     `;
 
-    row.append(descriptionCell, cardCell, installmentCell, dueCell, valueCell, actionsCell);
+    row.append(
+      descriptionCell,
+      cardCell,
+      categoryCell,
+      installmentCell,
+      dueCell,
+      valueCell,
+      actionsCell
+    );
     elements.purchaseTableBody.appendChild(row);
 
     const setEditing = (isEditing) => {
@@ -1427,6 +1527,7 @@ const bindEvents = () => {
 
   document.getElementById("purchaseForm")?.addEventListener("submit", handlePurchaseSubmit);
   document.getElementById("recurringForm")?.addEventListener("submit", handleRecurringSubmit);
+  document.getElementById("categoryForm")?.addEventListener("submit", handleCategorySubmit);
 
   // --- BLOCO 4: Listener do Botão da Categoria (Recorrência) ---
   // Colar isto DENTRO de bindEvents, pode ser no final, antes do } de fecho.

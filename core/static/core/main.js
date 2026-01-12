@@ -15,6 +15,7 @@ import { initImporter } from './modules/importer.js';
 export const loadCategories = async () => {
   try {
     const cats = await apiFetch("/api/categories/");
+    appState.categories = cats;
 
     const selectPurchase = document.getElementById("purchaseCategory");
     if (selectPurchase) {
@@ -34,6 +35,24 @@ export const loadCategories = async () => {
   } catch (e) {
     console.error("Erro ao carregar categorias:", e);
   }
+};
+
+const appendCategoryOption = (select, category) => {
+  if (!select) return;
+  const option = document.createElement("option");
+  option.value = category.id;
+  option.textContent = category.nome;
+  select.appendChild(option);
+};
+
+const updateImportCategorySelects = (category, selectedIndex = null) => {
+  const selects = document.querySelectorAll('#importTableBody select[id^="imp-cat-"]');
+  selects.forEach((select) => {
+    appendCategoryOption(select, category);
+    if (selectedIndex !== null && select.id === `imp-cat-${selectedIndex}`) {
+      select.value = String(category.id);
+    }
+  });
 };
 
 const renderPurchaseFilters = () => {
@@ -240,6 +259,41 @@ export const handleRecurringSubmit = async (event) => {
   }
 };
 
+const handleCategorySubmit = async (event) => {
+  event.preventDefault();
+  const form = event.target;
+  const nameInput = document.getElementById("categoryName");
+  const nome = nameInput?.value.trim();
+  if (!nome) {
+    showToast("Informe o nome da categoria.", "danger");
+    return;
+  }
+
+  try {
+    const category = await apiFetch("/api/categories/", {
+      method: "POST",
+      body: JSON.stringify({ nome }),
+    });
+    appState.categories = [...(appState.categories || []), category];
+
+    appendCategoryOption(document.getElementById("purchaseCategory"), category);
+    appendCategoryOption(document.getElementById("recurringCategory"), category);
+
+    const importModal = document.getElementById("importModal");
+    if (importModal?.classList.contains("show")) {
+      const selectedIndex = appState.importer?.pendingCategoryIndex;
+      updateImportCategorySelects(category, selectedIndex ?? null);
+    }
+    appState.importer.pendingCategoryIndex = null;
+
+    form.reset();
+    bootstrap.Modal.getInstance(document.getElementById("categoryModal"))?.hide();
+    showToast("Categoria criada com sucesso.", "success");
+  } catch (error) {
+    showToast(`Erro ao criar categoria: ${error.message}`, "danger");
+  }
+};
+
 export const bindEvents = () => {
   elements.monthSelect.addEventListener("change", () => {
     appState.month = Number(elements.monthSelect.value);
@@ -279,6 +333,7 @@ export const bindEvents = () => {
 
   document.getElementById("purchaseForm")?.addEventListener("submit", handlePurchaseSubmit);
   document.getElementById("recurringForm")?.addEventListener("submit", handleRecurringSubmit);
+  document.getElementById("categoryForm")?.addEventListener("submit", handleCategorySubmit);
 
   const btnToggleCatRec = document.getElementById("btnToggleNewCatRecurring");
   if (btnToggleCatRec) {

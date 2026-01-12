@@ -78,6 +78,8 @@ def _build_month_data(user, year, month):
                     "cartao_id": purchase.cartao_id,
                     "cartao_nome": nome_origem,  # Usamos a variável protegida aqui
                     "descricao": purchase.descricao,
+                    "categoria_id": purchase.categoria_id,
+                    "categoria_nome": purchase.categoria.nome if purchase.categoria else None,
                     "parcela_atual": diff + 1,
                     "parcelas": purchase.parcelas,
                     "valor_parcela": float(purchase.valor_parcela),
@@ -240,32 +242,32 @@ def parse_invoice_api(request):
             item["is_duplicate"] = False
             descricao = (item.get("descricao") or "").strip()
             valor = item.get("valor")
-            data_compra = item.get("data")
 
-            if not descricao or valor is None or not data_compra:
+            if not descricao or valor is None:
                 continue
 
             try:
-                compra_date = date.fromisoformat(data_compra)
-            except ValueError:
-                continue
-
-            try:
-                valor_decimal = Decimal(str(valor))
+                valor_decimal = Decimal(str(valor)).quantize(Decimal("0.01"))
             except (TypeError, ValueError):
+                continue
+
+            normalized_desc = re.sub(r"\s+", " ", descricao).strip().lower()
+            if not normalized_desc:
                 continue
 
             existing_purchases = CardPurchase.objects.filter(
                 user=request.user,
-                descricao__iexact=descricao,
-                primeiro_vencimento__year=compra_date.year,
-                primeiro_vencimento__month=compra_date.month,
+                valor_total=valor_decimal,
             )
 
             for purchase in existing_purchases:
-                parcelas = purchase.parcelas or 1
-                valor_parcela = purchase.valor_total / parcelas
-                if abs(valor_parcela - valor_decimal) <= Decimal("0.01"):
+                existing_desc = re.sub(r"\s+", " ", (purchase.descricao or "")).strip().lower()
+                if not existing_desc:
+                    continue
+                if normalized_desc in existing_desc or existing_desc in normalized_desc:
+                    item["is_duplicate"] = True
+                    break
+                if normalized_desc[:10] and existing_desc[:10] and normalized_desc[:10] == existing_desc[:10]:
                     item["is_duplicate"] = True
                     break
         return JsonResponse(data, safe=False)
@@ -630,8 +632,20 @@ def recurring_expense_detail_api(request, expense_id):
     return JsonResponse({"error": "Dados inválidos.", "details": form.errors}, status=400)
 
 @login_required
-@require_http_methods(["GET"])
+@require_http_methods(["GET", "POST"])
 def categories_api(request):
+    if request.method == "POST":
+        payload = _json_body(request)
+        nome = (payload.get("nome") or "").strip()
+        if not nome:
+            return JsonResponse({"error": "Nome inválido."}, status=400)
+        category, _ = Category.objects.get_or_create(
+            user=request.user,
+            nome=nome,
+            defaults={"cor": "#6c757d"},
+        )
+        return JsonResponse({"id": category.id, "nome": category.nome, "cor": category.cor}, status=201)
+
     cats = Category.objects.filter(user=request.user).order_by('nome')
     data = [{"id": c.id, "nome": c.nome, "cor": c.cor} for c in cats]
     return JsonResponse(data, safe=False)

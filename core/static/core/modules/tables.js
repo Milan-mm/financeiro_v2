@@ -131,6 +131,12 @@ export const renderPurchaseTable = (reloadCallback) => {
     const cardVariant = getCardBadgeVariant(item.cartao_nome);
     cardCell.innerHTML = `<span class="badge text-bg-${cardVariant}">${item.cartao_nome}</span>`;
 
+    const categoryCell = document.createElement("td");
+    const categoryName = appState.categories?.find((cat) => cat.id === item.categoria_id)?.nome;
+    categoryCell.innerHTML = categoryName
+      ? `<span class="badge bg-secondary">${categoryName}</span>`
+      : "<span class=\"text-muted\">-</span>";
+
     const installmentCell = document.createElement("td");
     if (item.parcelas === 1) {
       installmentCell.innerHTML = `
@@ -179,7 +185,15 @@ export const renderPurchaseTable = (reloadCallback) => {
       </div>
     `;
 
-    row.append(descriptionCell, cardCell, installmentCell, dueCell, valueCell, actionsCell);
+    row.append(
+      descriptionCell,
+      cardCell,
+      categoryCell,
+      installmentCell,
+      dueCell,
+      valueCell,
+      actionsCell
+    );
     elements.purchaseTableBody.appendChild(row);
 
     const setEditing = (isEditing) => {

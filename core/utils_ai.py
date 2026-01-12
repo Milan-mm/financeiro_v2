@@ -73,30 +73,32 @@ def analyze_invoice_text(text_content):
             if not raw_date:
                 continue
 
-            parsed_date = None
+            day = None
+            month = None
             try:
-                parsed_date = date.fromisoformat(raw_date)
+                parsed_date = date.fromisoformat(str(raw_date))
+                day = parsed_date.day
+                month = parsed_date.month
             except ValueError:
                 match = date_pattern.match(str(raw_date).strip())
                 if match:
                     day = int(match.group("day"))
                     month = int(match.group("month"))
-                    year = match.group("year")
-                    year = int(year) if year else current_year
-                    if year < 100:
-                        year += 2000
-                    parsed_date = date(year, month, day)
-            if not parsed_date:
+
+            if not day or not month:
                 continue
 
-            if parsed_date.year > current_year:
-                parsed_date = date(current_year, parsed_date.month, parsed_date.day)
-
-            if parsed_date > today:
-                adjusted_date = date(parsed_date.year - 1, parsed_date.month, parsed_date.day)
-                item["data"] = adjusted_date.isoformat()
+            if (month, day) > (today.month, today.day):
+                year = today.year - 1
             else:
-                item["data"] = parsed_date.isoformat()
+                year = today.year
+
+            try:
+                item_date = date(year, month, day)
+            except ValueError:
+                continue
+
+            item["data"] = item_date.isoformat()
 
         print(f"--- DEBUG AI: Sucesso! {len(data)} itens extraídos. ---")
         return data

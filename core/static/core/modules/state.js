@@ -1,6 +1,10 @@
 export const appState = {
   year: null,
   month: null,
+  categories: [],
+  importer: {
+    pendingCategoryIndex: null,
+  },
   data: {
     cards: [],
     purchases: [],
