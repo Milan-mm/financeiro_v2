@@ -56,7 +56,7 @@ DEBUG = os.getenv("DEBUG", "False").lower() == "true"
 # SECRET_KEY: Obrigatória
 SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-chave-padrao-dev")
 
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "127.0.0.1,localhost,finance25.railway.app,").split(",")
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "127.0.0.1,localhost,").split(",")
 
 # ==============================================================================
 # 3. BANCO DE DADOS
