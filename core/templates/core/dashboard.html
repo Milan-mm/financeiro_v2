@@ -97,6 +97,9 @@
                 <label for="yearSelect" class="form-label mb-0">Ano</label>
                 <select id="yearSelect" class="form-select form-select-sm" aria-label="Selecionar ano"></select>
               </div>
+              <button class="btn btn-outline-secondary btn-sm" id="privacyToggle" type="button" aria-pressed="false" aria-label="Ativar modo privacidade">
+                <i class="bi bi-eye" aria-hidden="true"></i>
+              </button>
               <button class="btn btn-outline-primary btn-sm" id="refreshButton" type="button">
                 Atualizar
               </button>
@@ -108,7 +111,7 @@
               <div class="card border-0 shadow-sm h-100">
                 <div class="card-body">
                   <p class="text-muted small mb-1">Total do mês</p>
-                  <h2 class="h4 fw-bold mb-0" id="totalMonth">R$ 0,00</h2>
+                  <h2 class="h4 fw-bold mb-0 blur-sensitive" id="totalMonth">R$ 0,00</h2>
                   <p class="text-muted small mb-0 mt-2">Somatório de compras e recorrências.</p>
                 </div>
               </div>
@@ -117,7 +120,7 @@
               <div class="card border-0 shadow-sm h-100">
                 <div class="card-body">
                   <p class="text-muted small mb-1">Cartões no mês</p>
-                  <h2 class="h4 fw-bold mb-0" id="totalCard">R$ 0,00</h2>
+                  <h2 class="h4 fw-bold mb-0 blur-sensitive" id="totalCard">R$ 0,00</h2>
                   <p class="text-muted small mb-0 mt-2">Faturas em andamento.</p>
                 </div>
               </div>
@@ -126,7 +129,7 @@
               <div class="card border-0 shadow-sm h-100">
                 <div class="card-body">
                   <p class="text-muted small mb-1">Recorrentes</p>
-                  <h2 class="h4 fw-bold mb-0" id="totalRecurring">R$ 0,00</h2>
+                  <h2 class="h4 fw-bold mb-0 blur-sensitive" id="totalRecurring">R$ 0,00</h2>
                   <p class="text-muted small mb-0 mt-2">Contas fixas do casal.</p>
                 </div>
               </div>

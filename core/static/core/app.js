@@ -38,10 +38,41 @@ const monthNames = [
   "Dezembro",
 ];
 
+const PRIVACY_STORAGE_KEY = "financeiro:privacy-active";
+
 const elements = {};
 const chartState = {
   line: null,
   doughnut: null,
+};
+
+const initPrivacyToggle = () => {
+  const body = document.body;
+  if (!body) return;
+  const toggleButton = document.getElementById("privacyToggle");
+  const storedPreference = localStorage.getItem(PRIVACY_STORAGE_KEY);
+
+  if (storedPreference === "true") {
+    body.classList.add("privacy-active");
+  }
+
+  const syncButtonState = () => {
+    if (!toggleButton) return;
+    const isActive = body.classList.contains("privacy-active");
+    toggleButton.setAttribute("aria-pressed", isActive ? "true" : "false");
+    toggleButton.classList.toggle("btn-primary", isActive);
+    toggleButton.classList.toggle("btn-outline-secondary", !isActive);
+    toggleButton.innerHTML = `<i class="bi ${isActive ? "bi-eye-slash" : "bi-eye"}" aria-hidden="true"></i>`;
+  };
+
+  syncButtonState();
+
+  if (!toggleButton) return;
+  toggleButton.addEventListener("click", () => {
+    body.classList.toggle("privacy-active");
+    localStorage.setItem(PRIVACY_STORAGE_KEY, body.classList.contains("privacy-active"));
+    syncButtonState();
+  });
 };
 
 const getCookie = (name) => {
@@ -776,7 +807,7 @@ const renderCards = () => {
         <strong>${card.nome}</strong>
         <small class="text-muted">Arraste compras aqui</small>
       </div>
-      <div class="value">${formatCurrency(card.total_mes)}</div>
+      <div class="value blur-sensitive">${formatCurrency(card.total_mes)}</div>
     `;
     wrapper.addEventListener("dragover", (event) => {
       event.preventDefault();
@@ -905,6 +936,7 @@ const renderPurchaseTable = () => {
     const valueCell = document.createElement("td");
     valueCell.className = "text-end";
     const valueEditable = createEditableCell(formatCurrency(item.valor_parcela), "number", item.valor_total, "form-control form-control-sm text-end");
+    valueEditable.wrapper.classList.add("blur-sensitive");
     valueCell.appendChild(valueEditable.wrapper);
 
     const actionsCell = document.createElement("td");
@@ -1038,7 +1070,7 @@ const renderRecurringTable = () => {
 
     // 3. Valor
     const valCell = document.createElement("td");
-    valCell.textContent = currencyFormatter.format(r.valor);
+    valCell.innerHTML = `<span class="blur-sensitive">${currencyFormatter.format(r.valor)}</span>`;
     tr.appendChild(valCell);
 
     // 4. Status
@@ -1497,6 +1529,7 @@ const bindEvents = () => {
 const init = () => {
   updateLogsPendingBadge();
   initSystemLogs();
+  initPrivacyToggle();
 
   if (!document.getElementById("monthSelect")) {
     return;

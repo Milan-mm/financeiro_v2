@@ -90,7 +90,7 @@ export const renderCards = (reloadCallback) => {
         <strong>${card.nome}</strong>
         <small class="text-muted">Arraste compras aqui</small>
       </div>
-      <div class="value">${formatCurrency(card.total_mes)}</div>
+      <div class="value blur-sensitive">${formatCurrency(card.total_mes)}</div>
     `;
     wrapper.addEventListener("dragover", (event) => {
       event.preventDefault();
@@ -167,6 +167,7 @@ export const renderPurchaseTable = (reloadCallback) => {
       item.valor_total,
       "form-control form-control-sm text-end"
     );
+    valueEditable.wrapper.classList.add("blur-sensitive");
     valueCell.appendChild(valueEditable.wrapper);
 
     const actionsCell = document.createElement("td");
@@ -342,7 +343,7 @@ export const renderRecurringTable = (reloadCallback) => {
     tr.appendChild(descCell);
 
     const valCell = document.createElement("td");
-    valCell.textContent = formatCurrency(r.valor);
+    valCell.innerHTML = `<span class="blur-sensitive">${formatCurrency(r.valor)}</span>`;
     tr.appendChild(valCell);
 
     const statusCell = document.createElement("td");

@@ -1,5 +1,36 @@
 import { appState, elements, monthNames } from "./state.js";
 
+const PRIVACY_STORAGE_KEY = "financeiro:privacy-active";
+
+export const initPrivacyToggle = () => {
+  const body = document.body;
+  if (!body) return;
+  const toggleButton = document.getElementById("privacyToggle");
+  const storedPreference = localStorage.getItem(PRIVACY_STORAGE_KEY);
+
+  if (storedPreference === "true") {
+    body.classList.add("privacy-active");
+  }
+
+  const syncButtonState = () => {
+    if (!toggleButton) return;
+    const isActive = body.classList.contains("privacy-active");
+    toggleButton.setAttribute("aria-pressed", isActive ? "true" : "false");
+    toggleButton.classList.toggle("btn-primary", isActive);
+    toggleButton.classList.toggle("btn-outline-secondary", !isActive);
+    toggleButton.innerHTML = `<i class="bi ${isActive ? "bi-eye-slash" : "bi-eye"}" aria-hidden="true"></i>`;
+  };
+
+  syncButtonState();
+
+  if (!toggleButton) return;
+  toggleButton.addEventListener("click", () => {
+    body.classList.toggle("privacy-active");
+    localStorage.setItem(PRIVACY_STORAGE_KEY, body.classList.contains("privacy-active"));
+    syncButtonState();
+  });
+};
+
 export const setLoadingState = (isLoading) => {
   if (!isLoading) return;
   elements.purchaseTableBody.innerHTML = `<tr class="skeleton-row"><td colspan="6"><div class="skeleton-line"></div></td></tr>`;

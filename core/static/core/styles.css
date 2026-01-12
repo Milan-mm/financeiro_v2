@@ -14,6 +14,11 @@ body.page {
   background: #f5f6fb;
 }
 
+body.privacy-active .blur-sensitive {
+  filter: blur(5px);
+  user-select: none;
+}
+
 .dashboard-layout {
   display: flex;
 }
@@ -184,6 +189,22 @@ body.page {
   display: flex;
   justify-content: flex-end;
   gap: 6px;
+}
+
+.accordion-toggle-button {
+  gap: 12px;
+}
+
+.accordion-toggle-button::after {
+  display: none;
+}
+
+.accordion-toggle-button .accordion-icon {
+  transition: transform 0.2s ease;
+}
+
+.accordion-toggle-button:not(.collapsed) .accordion-icon {
+  transform: rotate(180deg);
 }
 
 .skeleton-line {
