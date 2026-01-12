@@ -287,32 +287,40 @@ export const markRecurringAsPaid = async (id) => {
   }
 };
 
-export const editRecurringValue = async (id, valorAtual) => {
-  const novoValor = prompt("Corrigir valor da conta:", valorAtual);
+const openRecurringEditModal = (recurringItem) => {
+  const modalElement = document.getElementById("recurringModal");
+  const form = document.getElementById("recurringForm");
+  if (!modalElement || !form) return;
 
-  if (novoValor === null || novoValor.trim() === "") return;
+  form.dataset.recurringId = recurringItem.id;
+  const title = document.getElementById("recurringModalLabel");
+  if (title) title.textContent = "Editar recorrência";
 
-  const valorFormatado = novoValor.replace(",", ".");
+  const submitButton = modalElement.querySelector('button[type="submit"][form="recurringForm"]');
+  if (submitButton) submitButton.textContent = "Salvar alterações";
 
-  if (Number.isNaN(Number(valorFormatado))) {
-    alert("Por favor, insira um valor válido.");
-    return;
+  const categorySelect = document.getElementById("recurringCategory");
+  const categoryInput = document.getElementById("recurringNewCategory");
+  const toggleButton = document.getElementById("btnToggleNewCatRecurring");
+
+  elements.recurringDescription.value = recurringItem.descricao || "";
+  elements.recurringValue.value = recurringItem.valor ?? "";
+  elements.recurringDay.value = recurringItem.dia_vencimento ?? "";
+  elements.recurringStart.value = recurringItem.inicio || "";
+  elements.recurringEnd.value = recurringItem.fim || "";
+  elements.recurringActive.checked = Boolean(recurringItem.ativo);
+
+  if (categoryInput) {
+    categoryInput.value = "";
+    categoryInput.style.display = "none";
   }
-
-  setLoadingState(true);
-  try {
-    await apiFetch(`/api/recurring/${id}/update-value/`, {
-      method: "POST",
-      body: JSON.stringify({ valor: parseFloat(valorFormatado) }),
-    });
-
-    showToast("Valor atualizado com sucesso!", "success");
-    await reloadMonthData?.();
-  } catch (error) {
-    showToast(`Erro ao atualizar: ${error.message}`, "danger");
-  } finally {
-    setLoadingState(false);
+  if (categorySelect) {
+    categorySelect.style.display = "block";
+    categorySelect.value = recurringItem.categoria_id ? String(recurringItem.categoria_id) : "";
   }
+  if (toggleButton) toggleButton.textContent = "+";
+
+  bootstrap.Modal.getOrCreateInstance(modalElement).show();
 };
 
 export const renderRecurringTable = (reloadCallback) => {
@@ -333,14 +341,16 @@ export const renderRecurringTable = (reloadCallback) => {
     tr.appendChild(dayCell);
 
     const descCell = document.createElement("td");
-    let catHtml = "";
-    if (r.categoria_nome) {
-      catHtml = `<span class="badge bg-secondary ms-2" style="font-size: 0.7em;">${r.categoria_nome}</span>`;
-    }
-    descCell.innerHTML = `<div class="fw-medium">${r.descricao}${catHtml}</div><small class="text-muted">Desde ${new Date(
+    descCell.innerHTML = `<div class="fw-medium">${r.descricao}</div><small class="text-muted">Desde ${new Date(
       r.inicio
     ).toLocaleDateString("pt-BR")}</small>`;
     tr.appendChild(descCell);
+
+    const categoryCell = document.createElement("td");
+    categoryCell.innerHTML = r.categoria_nome
+      ? `<span class="badge bg-secondary">${r.categoria_nome}</span>`
+      : '<span class="text-muted">Sem categoria</span>';
+    tr.appendChild(categoryCell);
 
     const valCell = document.createElement("td");
     valCell.innerHTML = `<span class="blur-sensitive">${formatCurrency(r.valor)}</span>`;
@@ -362,8 +372,8 @@ export const renderRecurringTable = (reloadCallback) => {
       const editBtn = document.createElement("button");
       editBtn.className = "btn btn-sm btn-outline-secondary me-2";
       editBtn.innerHTML = '<i class="bi bi-pencil"></i>';
-      editBtn.title = "Corrigir Valor";
-      editBtn.onclick = () => editRecurringValue(r.id, r.valor);
+      editBtn.title = "Editar recorrência";
+      editBtn.onclick = () => openRecurringEditModal(r);
       actCell.appendChild(editBtn);
 
       if (!r.is_paid) {

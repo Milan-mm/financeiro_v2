@@ -113,6 +113,7 @@ def _build_month_data(user, year, month):
                 "id": conta.id,
                 "descricao": conta.descricao,
                 "categoria_nome": conta.categoria.nome if conta.categoria else None,
+                "categoria_id": conta.categoria_id,
                 "valor": float(conta.valor),
                 "dia_vencimento": conta.dia_vencimento,
                 "inicio": conta.inicio.isoformat(),

@@ -216,7 +216,7 @@ const formatDateTime = (dateStr) => {
 const setLoadingState = (isLoading) => {
   if (!isLoading) return;
   elements.purchaseTableBody.innerHTML = `<tr class="skeleton-row"><td colspan="6"><div class="skeleton-line"></div></td></tr>`;
-  elements.recurringTableBody.innerHTML = `<tr class="skeleton-row"><td colspan="5"><div class="skeleton-line"></div></td></tr>`;
+  elements.recurringTableBody.innerHTML = `<tr class="skeleton-row"><td colspan="6"><div class="skeleton-line"></div></td></tr>`;
 };
 
 const populateMonthSelectors = () => {
@@ -634,36 +634,41 @@ const markRecurringAsPaid = async (id) => {
     }
 };
 
-// 2. Função para editar o valor
-const editRecurringValue = async (id, valorAtual) => {
-    // Pede o novo valor ao utilizador (já preenchido com o atual)
-    const novoValor = prompt("Corrigir valor da conta:", valorAtual);
+// 2. Função para editar recorrência via modal
+const openRecurringEditModal = (recurringItem) => {
+    const modalElement = document.getElementById("recurringModal");
+    const form = document.getElementById("recurringForm");
+    if (!modalElement || !form) return;
 
-    // Se cancelar ou deixar vazio, não faz nada
-    if (novoValor === null || novoValor.trim() === "") return;
+    form.dataset.recurringId = recurringItem.id;
+    const title = document.getElementById("recurringModalLabel");
+    if (title) title.textContent = "Editar recorrência";
 
-    // Substitui vírgula por ponto para garantir formato numérico
-    const valorFormatado = novoValor.replace(",", ".");
+    const submitButton = modalElement.querySelector('button[type="submit"][form="recurringForm"]');
+    if (submitButton) submitButton.textContent = "Salvar alterações";
 
-    if (isNaN(valorFormatado)) {
-        alert("Por favor, insira um valor válido.");
-        return;
+    const categorySelect = document.getElementById("recurringCategory");
+    const categoryInput = document.getElementById("recurringNewCategory");
+    const toggleButton = document.getElementById("btnToggleNewCatRecurring");
+
+    elements.recurringDescription.value = recurringItem.descricao || "";
+    elements.recurringValue.value = recurringItem.valor ?? "";
+    elements.recurringDay.value = recurringItem.dia_vencimento ?? "";
+    elements.recurringStart.value = recurringItem.inicio || "";
+    elements.recurringEnd.value = recurringItem.fim || "";
+    elements.recurringActive.checked = Boolean(recurringItem.ativo);
+
+    if (categoryInput) {
+        categoryInput.value = "";
+        categoryInput.style.display = "none";
     }
-
-    setLoadingState(true);
-    try {
-        await apiFetch(`/api/recurring/${id}/update-value/`, {
-            method: "POST",
-            body: JSON.stringify({ valor: parseFloat(valorFormatado) }),
-        });
-
-        showToast("Valor atualizado com sucesso!", "success");
-        loadMonthData();
-    } catch (error) {
-        showToast(`Erro ao atualizar: ${error.message}`, "danger");
-    } finally {
-        setLoadingState(false);
+    if (categorySelect) {
+        categorySelect.style.display = "block";
+        categorySelect.value = recurringItem.categoria_id ? String(recurringItem.categoria_id) : "";
     }
+    if (toggleButton) toggleButton.textContent = "+";
+
+    bootstrap.Modal.getOrCreateInstance(modalElement).show();
 };
 
 const loadMonthData = async () => {
@@ -1059,21 +1064,24 @@ const renderRecurringTable = () => {
     dayCell.textContent = r.dia_vencimento;
     tr.appendChild(dayCell);
 
-    // 2. Descrição + Categoria
+    // 2. Descrição
     const descCell = document.createElement("td");
-    let catHtml = "";
-    if (r.categoria_nome) {
-      catHtml = `<span class="badge bg-secondary ms-2" style="font-size: 0.7em;">${r.categoria_nome}</span>`;
-    }
-    descCell.innerHTML = `<div class="fw-medium">${r.descricao}${catHtml}</div><small class="text-muted">Desde ${new Date(r.inicio).toLocaleDateString("pt-BR")}</small>`;
+    descCell.innerHTML = `<div class="fw-medium">${r.descricao}</div><small class="text-muted">Desde ${new Date(r.inicio).toLocaleDateString("pt-BR")}</small>`;
     tr.appendChild(descCell);
 
-    // 3. Valor
+    // 3. Categoria
+    const categoryCell = document.createElement("td");
+    categoryCell.innerHTML = r.categoria_nome
+      ? `<span class="badge bg-secondary">${r.categoria_nome}</span>`
+      : '<span class="text-muted">Sem categoria</span>';
+    tr.appendChild(categoryCell);
+
+    // 4. Valor
     const valCell = document.createElement("td");
     valCell.innerHTML = `<span class="blur-sensitive">${currencyFormatter.format(r.valor)}</span>`;
     tr.appendChild(valCell);
 
-    // 4. Status
+    // 5. Status
     const statusCell = document.createElement("td");
     const statusBadge = document.createElement("span");
     statusBadge.className = `badge ${r.ativo ? (r.is_paid ? "bg-success" : "bg-warning text-dark") : "bg-secondary"}`;
@@ -1081,7 +1089,7 @@ const renderRecurringTable = () => {
     statusCell.appendChild(statusBadge);
     tr.appendChild(statusCell);
 
-    // 5. Ações (CORRIGIDO)
+    // 6. Ações (CORRIGIDO)
     const actCell = document.createElement("td");
     actCell.className = "text-end";
 
@@ -1090,8 +1098,8 @@ const renderRecurringTable = () => {
       const editBtn = document.createElement("button");
       editBtn.className = "btn btn-sm btn-outline-secondary me-2";
       editBtn.innerHTML = '<i class="bi bi-pencil"></i>';
-      editBtn.title = "Corrigir Valor";
-      editBtn.onclick = () => editRecurringValue(r.id, r.valor);
+      editBtn.title = "Editar recorrência";
+      editBtn.onclick = () => openRecurringEditModal(r);
       actCell.appendChild(editBtn);
 
       // Lógica de Pagamento
@@ -1329,6 +1337,7 @@ const handleRecurringSubmit = async (event) => {
   }
 
   // LER CATEGORIAS (Novidade)
+  const recurringId = form.dataset.recurringId;
   const newCatName = document.getElementById('recurringNewCategory').value;
   const catId = document.getElementById('recurringCategory').value;
 
@@ -1345,8 +1354,16 @@ const handleRecurringSubmit = async (event) => {
   };
 
   try {
-    await apiFetch("/api/recurring-expense/", { method: "POST", body: JSON.stringify(payload) });
-    showToast("Recorrência adicionada.");
+    if (recurringId) {
+      await apiFetch(`/api/recurring-expense/${recurringId}/`, {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      });
+      showToast("Recorrência atualizada.");
+    } else {
+      await apiFetch("/api/recurring-expense/", { method: "POST", body: JSON.stringify(payload) });
+      showToast("Recorrência adicionada.");
+    }
     form.reset();
     form.classList.remove("was-validated");
 
@@ -1355,6 +1372,12 @@ const handleRecurringSubmit = async (event) => {
     document.getElementById('recurringCategory').style.display = 'block';
     const btn = document.getElementById('btnToggleNewCatRecurring');
     if(btn) btn.textContent = '+';
+
+    delete form.dataset.recurringId;
+    const title = document.getElementById("recurringModalLabel");
+    if (title) title.textContent = "Nova recorrência";
+    const submitButton = document.querySelector('button[type="submit"][form="recurringForm"]');
+    if (submitButton) submitButton.textContent = "Salvar recorrência";
 
     bootstrap.Modal.getInstance(document.getElementById("recurringModal"))?.hide();
     await loadMonthData();
@@ -1433,6 +1456,16 @@ const bindEvents = () => {
 
     // Foca na descrição (código que já deves ter)
     elements.recurringDescription.focus();
+  });
+
+  document.getElementById("recurringModal")?.addEventListener("hidden.bs.modal", () => {
+    const form = document.getElementById("recurringForm");
+    if (!form) return;
+    delete form.dataset.recurringId;
+    const title = document.getElementById("recurringModalLabel");
+    if (title) title.textContent = "Nova recorrência";
+    const submitButton = document.querySelector('button[type="submit"][form="recurringForm"]');
+    if (submitButton) submitButton.textContent = "Salvar recorrência";
   });
 
   // --- NOVA LÓGICA: Alternar campos por Tipo de Pagamento ---

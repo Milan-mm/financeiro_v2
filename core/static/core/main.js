@@ -189,6 +189,7 @@ export const handleRecurringSubmit = async (event) => {
     return;
   }
 
+  const recurringId = form.dataset.recurringId;
   const newCatName = document.getElementById("recurringNewCategory").value;
   const catId = document.getElementById("recurringCategory").value;
 
@@ -204,11 +205,19 @@ export const handleRecurringSubmit = async (event) => {
   };
 
   try {
-    await apiFetch("/api/recurring-expense/", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
-    showToast("Recorrência adicionada.");
+    if (recurringId) {
+      await apiFetch(`/api/recurring-expense/${recurringId}/`, {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      });
+      showToast("Recorrência atualizada.");
+    } else {
+      await apiFetch("/api/recurring-expense/", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      showToast("Recorrência adicionada.");
+    }
     form.reset();
     form.classList.remove("was-validated");
 
@@ -216,6 +225,12 @@ export const handleRecurringSubmit = async (event) => {
     document.getElementById("recurringCategory").style.display = "block";
     const btn = document.getElementById("btnToggleNewCatRecurring");
     if (btn) btn.textContent = "+";
+
+    delete form.dataset.recurringId;
+    const title = document.getElementById("recurringModalLabel");
+    if (title) title.textContent = "Nova recorrência";
+    const submitButton = document.querySelector('button[type="submit"][form="recurringForm"]');
+    if (submitButton) submitButton.textContent = "Salvar recorrência";
 
     bootstrap.Modal.getInstance(document.getElementById("recurringModal"))?.hide();
     await loadMonthData();
@@ -296,6 +311,16 @@ export const bindEvents = () => {
     if (btnCat) btnCat.textContent = "+";
 
     elements.recurringDescription.focus();
+  });
+
+  document.getElementById("recurringModal")?.addEventListener("hidden.bs.modal", () => {
+    const form = document.getElementById("recurringForm");
+    if (!form) return;
+    delete form.dataset.recurringId;
+    const title = document.getElementById("recurringModalLabel");
+    if (title) title.textContent = "Nova recorrência";
+    const submitButton = document.querySelector('button[type="submit"][form="recurringForm"]');
+    if (submitButton) submitButton.textContent = "Salvar recorrência";
   });
 
   const paymentRadios = document.querySelectorAll('input[name="tipo_pagamento"]');
