@@ -1,0 +1,195 @@
+{% include "partials/messages.html" %}
+
+<section class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <p class="text-muted small mb-1">Receitas</p>
+        <h2 class="h4 fw-bold mb-0">R$ {{ total_income }}</h2>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <p class="text-muted small mb-1">Despesas</p>
+        <h2 class="h4 fw-bold mb-0">R$ {{ total_expense }}</h2>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <p class="text-muted small mb-1">Saldo líquido</p>
+        <h2 class="h4 fw-bold mb-0">R$ {{ net }}</h2>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <p class="text-muted small mb-1">Recebíveis</p>
+        <p class="mb-0">Esperado: <strong>R$ {{ expected_total }}</strong></p>
+        <p class="mb-0">Recebido: <strong>R$ {{ received_total }}</strong></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="row g-3 mb-4">
+  <div class="col-lg-7">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <h3 class="h6 fw-semibold">Despesa acumulada no mês</h3>
+        <canvas id="expenseLineChart" height="120"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-5">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <h3 class="h6 fw-semibold">Despesas por categoria</h3>
+        <canvas id="expenseDonutChart" height="160"></canvas>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="row g-3 mb-4">
+  <div class="col-lg-5">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <h3 class="h6 fw-semibold">Receitas por categoria</h3>
+        <canvas id="incomeDonutChart" height="160"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-7">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <h3 class="h6 fw-semibold">Resumo por categoria</h3>
+        <div class="row">
+          <div class="col-md-6">
+            <h4 class="h6 fw-semibold">Despesas</h4>
+            <ul class="list-group list-group-flush">
+              {% for row in expenses_breakdown %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                  <span>{{ row.name }}</span>
+                  <span>R$ {{ row.total }} ({{ row.percent|floatformat:0 }}%)</span>
+                </li>
+              {% empty %}
+                <li class="list-group-item text-muted">Sem despesas no mês.</li>
+              {% endfor %}
+            </ul>
+          </div>
+          <div class="col-md-6">
+            <h4 class="h6 fw-semibold">Receitas</h4>
+            <ul class="list-group list-group-flush">
+              {% for row in income_breakdown %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                  <span>{{ row.name }}</span>
+                  <span>R$ {{ row.total }} ({{ row.percent|floatformat:0 }}%)</span>
+                </li>
+              {% empty %}
+                <li class="list-group-item text-muted">Sem receitas no mês.</li>
+              {% endfor %}
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="row g-3">
+  <div class="col-lg-7">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h3 class="h6 fw-semibold mb-0">Lançamentos do mês</h3>
+          <button
+            class="btn btn-outline-primary btn-sm"
+            hx-get="{% url 'finance:entry-create' %}?year={{ year }}&month={{ month }}"
+            hx-target="#modal-root"
+            hx-swap="innerHTML"
+          >
+            Novo lançamento
+          </button>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>Data</th>
+                <th>Descrição</th>
+                <th>Tipo</th>
+                <th class="text-end">Valor</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for entry in entries %}
+                <tr>
+                  <td>{{ entry.date|date:"d/m/Y" }}</td>
+                  <td>{{ entry.description }}</td>
+                  <td>{{ entry.get_kind_display }}</td>
+                  <td class="text-end">R$ {{ entry.amount }}</td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="4" class="text-muted">Sem lançamentos no período.</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-5">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h3 class="h6 fw-semibold mb-0">Recebíveis do mês</h3>
+          <button
+            class="btn btn-outline-primary btn-sm"
+            hx-get="{% url 'finance:receivable-create' %}"
+            hx-target="#modal-root"
+            hx-swap="innerHTML"
+          >
+            Novo recebível
+          </button>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>Data</th>
+                <th>Descrição</th>
+                <th>Status</th>
+                <th class="text-end">Valor</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for receivable in receivables %}
+                <tr>
+                  <td>{{ receivable.expected_date|date:"d/m/Y" }}</td>
+                  <td>{{ receivable.description }}</td>
+                  <td>{{ receivable.get_status_display }}</td>
+                  <td class="text-end">R$ {{ receivable.amount }}</td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="4" class="text-muted">Sem recebíveis no período.</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+{{ line_chart|json_script:"line-chart-data" }}
+{{ expense_chart|json_script:"expense-chart-data" }}
+{{ income_chart|json_script:"income-chart-data" }}

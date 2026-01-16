@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+  <div class="dashboard-layout">
+    {% include "partials/nav.html" %}
+
+    <main class="main-content">
+      <div class="container-xxl py-4">
+        <header class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 mb-4">
+          <div>
+            <p class="text-uppercase text-muted fw-semibold small mb-1">Dashboard</p>
+            <h1 class="h3 fw-bold mb-1">Resumo mensal</h1>
+            <p class="text-muted mb-0">Acompanhe receitas, despesas e recebíveis do mês.</p>
+          </div>
+          <form
+            id="dashboard-filters"
+            class="row g-2 align-items-end"
+            hx-get="{% url 'dashboard' %}"
+            hx-target="#dashboard-content"
+            hx-swap="innerHTML"
+            hx-push-url="true"
+            hx-trigger="change"
+          >
+            <div class="col-auto">
+              <label class="form-label">Mês</label>
+              <select name="month" class="form-select">
+                {% for name in month_names %}
+                  <option value="{{ forloop.counter }}" {% if forloop.counter == month %}selected{% endif %}>{{ name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-auto">
+              <label class="form-label">Ano</label>
+              <select name="year" class="form-select">
+                {% for year_option in year_options %}
+                  <option value="{{ year_option }}" {% if year_option == year %}selected{% endif %}>{{ year_option }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </form>
+        </header>
+
+        <div
+          id="dashboard-content"
+          hx-get="{% url 'dashboard' %}"
+          hx-trigger="dashboard:refresh from:body"
+          hx-target="#dashboard-content"
+          hx-swap="innerHTML"
+          hx-include="#dashboard-filters"
+          hx-push-url="true"
+        >
+          {% include "finance/partials/_dashboard_content.html" %}
+        </div>
+      </div>
+    </main>
+  </div>
+{% endblock %}
+
+{% block extra_scripts %}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="{% static 'js/dashboard_charts.js' %}"></script>
+{% endblock %}

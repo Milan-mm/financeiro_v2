@@ -1,14 +1,19 @@
+from calendar import monthrange
 from datetime import date
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.db import transaction
+from django.db import models, transaction
+from django.db.models import Sum
+from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from .forms import AccountForm, CategoryForm, LedgerEntryForm, ReceivableForm
 from .models import Account, Category, LedgerEntry, Receivable
+
+import json
 
 
 def _is_htmx(request):
@@ -18,8 +23,153 @@ def _is_htmx(request):
 def _render_partial(request, template, context, trigger=None):
     response = render(request, template, context)
     if trigger:
-        response["HX-Trigger"] = trigger
+        response["HX-Trigger"] = json.dumps(trigger) if isinstance(trigger, dict) else trigger
     return response
+
+
+@login_required
+def dashboard(request):
+    today = timezone.localdate()
+    year = int(request.GET.get("year", today.year))
+    month = int(request.GET.get("month", today.month))
+    month_start = date(year, month, 1)
+    month_end = date(year, month, monthrange(year, month)[1])
+
+    entries = LedgerEntry.objects.filter(
+        household=request.household,
+        date__range=(month_start, month_end),
+    )
+    total_income = (
+        entries.filter(kind=LedgerEntry.Kind.INCOME).aggregate(total=Coalesce(Sum("amount"), 0))["total"]
+    )
+    total_expense = (
+        entries.filter(kind=LedgerEntry.Kind.EXPENSE).aggregate(total=Coalesce(Sum("amount"), 0))["total"]
+    )
+    net = total_income - total_expense
+
+    receivables_expected = Receivable.objects.filter(
+        household=request.household,
+        status=Receivable.Status.EXPECTED,
+        expected_date__range=(month_start, month_end),
+    )
+    expected_total = receivables_expected.aggregate(total=Coalesce(Sum("amount"), 0))["total"]
+
+    receivables_received = Receivable.objects.filter(
+        household=request.household,
+        status=Receivable.Status.RECEIVED,
+        received_at__date__range=(month_start, month_end),
+    )
+    received_total = receivables_received.aggregate(total=Coalesce(Sum("amount"), 0))["total"]
+
+    receivables_for_month = Receivable.objects.filter(household=request.household).filter(
+        models.Q(expected_date__range=(month_start, month_end))
+        | models.Q(received_at__date__range=(month_start, month_end))
+    )
+
+    entries_for_month = entries.order_by("-date", "-id")
+
+    expenses_breakdown = _category_breakdown(entries.filter(kind=LedgerEntry.Kind.EXPENSE), total_expense)
+    income_breakdown = _category_breakdown(entries.filter(kind=LedgerEntry.Kind.INCOME), total_income)
+
+    line_labels, line_values = _daily_cumulative(entries.filter(kind=LedgerEntry.Kind.EXPENSE), month_start)
+
+    expense_chart = _donut_data(expenses_breakdown)
+    income_chart = _donut_data(income_breakdown)
+
+    context = {
+        "year": year,
+        "month": month,
+        "month_start": month_start,
+        "month_end": month_end,
+        "entries": entries_for_month,
+        "receivables": receivables_for_month,
+        "total_income": total_income,
+        "total_expense": total_expense,
+        "net": net,
+        "expected_total": expected_total,
+        "received_total": received_total,
+        "expenses_breakdown": expenses_breakdown,
+        "income_breakdown": income_breakdown,
+        "line_chart": {"labels": line_labels, "data": line_values},
+        "expense_chart": expense_chart,
+        "income_chart": income_chart,
+        "month_names": _month_names(),
+        "year_options": _year_options(year),
+    }
+
+    if _is_htmx(request):
+        return render(request, "finance/partials/_dashboard_content.html", context)
+    return render(request, "finance/dashboard.html", context)
+
+
+def _month_names():
+    return [
+        "Janeiro",
+        "Fevereiro",
+        "Março",
+        "Abril",
+        "Maio",
+        "Junho",
+        "Julho",
+        "Agosto",
+        "Setembro",
+        "Outubro",
+        "Novembro",
+        "Dezembro",
+    ]
+
+
+def _year_options(current_year):
+    start = current_year - 2
+    end = current_year + 2
+    return list(range(start, end + 1))
+
+
+def _category_breakdown(queryset, total):
+    rows = (
+        queryset.values("category__name")
+        .annotate(total=Coalesce(Sum("amount"), 0))
+        .order_by("-total")
+    )
+    results = []
+    for row in rows:
+        name = row["category__name"] or "Sem categoria"
+        amount = row["total"]
+        percent = (amount / total * 100) if total else 0
+        results.append({"name": name, "total": amount, "percent": percent})
+    return results
+
+
+def _daily_cumulative(queryset, month_start):
+    days_in_month = monthrange(month_start.year, month_start.month)[1]
+    daily = [0] * days_in_month
+    for row in queryset.values("date").annotate(total=Coalesce(Sum("amount"), 0)):
+        day_index = row["date"].day - 1
+        if 0 <= day_index < days_in_month:
+            daily[day_index] = float(row["total"])
+    cumulative = []
+    running = 0
+    for value in daily:
+        running += value
+        cumulative.append(running)
+    labels = [str(day) for day in range(1, days_in_month + 1)]
+    return labels, cumulative
+
+
+def _donut_data(breakdown, limit=6):
+    labels = []
+    data = []
+    others_total = 0
+    for index, item in enumerate(breakdown):
+        if index < limit:
+            labels.append(item["name"])
+            data.append(float(item["total"]))
+        else:
+            others_total += float(item["total"])
+    if others_total:
+        labels.append("Outros")
+        data.append(others_total)
+    return {"labels": labels, "data": data}
 
 
 @login_required
@@ -202,7 +352,7 @@ def entry_create(request):
                 request,
                 "finance/partials/_entry_table.html",
                 {"entries": entries, "year": year, "month": month},
-                trigger="closeModal",
+                trigger={"closeModal": True, "dashboard:refresh": True},
             )
     else:
         form = LedgerEntryForm(household=request.household)
@@ -232,7 +382,7 @@ def entry_edit(request, pk):
                 request,
                 "finance/partials/_entry_table.html",
                 {"entries": entries, "year": year, "month": month},
-                trigger="closeModal",
+                trigger={"closeModal": True, "dashboard:refresh": True},
             )
     else:
         form = LedgerEntryForm(instance=entry, household=request.household)
@@ -259,6 +409,7 @@ def entry_delete(request, pk):
         request,
         "finance/partials/_entry_table.html",
         {"entries": entries, "year": year, "month": month},
+        trigger={"dashboard:refresh": True},
     )
 
 
@@ -290,7 +441,7 @@ def receivable_create(request):
                 request,
                 "finance/partials/_receivable_table.html",
                 {"receivables": receivables, "status": "all"},
-                trigger="closeModal",
+                trigger={"closeModal": True, "dashboard:refresh": True},
             )
     else:
         form = ReceivableForm(household=request.household)
@@ -311,7 +462,7 @@ def receivable_edit(request, pk):
                 request,
                 "finance/partials/_receivable_table.html",
                 {"receivables": receivables, "status": "all"},
-                trigger="closeModal",
+                trigger={"closeModal": True, "dashboard:refresh": True},
             )
     else:
         form = ReceivableForm(instance=receivable, household=request.household)
@@ -333,7 +484,10 @@ def receivable_delete(request, pk):
     if status != "all":
         receivables = receivables.filter(status=status)
     return _render_partial(
-        request, "finance/partials/_receivable_table.html", {"receivables": receivables, "status": status}
+        request,
+        "finance/partials/_receivable_table.html",
+        {"receivables": receivables, "status": status},
+        trigger={"dashboard:refresh": True},
     )
 
 
@@ -367,7 +521,10 @@ def receivable_receive(request, pk):
     if status != "all":
         receivables = receivables.filter(status=status)
     return _render_partial(
-        request, "finance/partials/_receivable_table.html", {"receivables": receivables, "status": status}
+        request,
+        "finance/partials/_receivable_table.html",
+        {"receivables": receivables, "status": status},
+        trigger={"dashboard:refresh": True},
     )
 
 
@@ -384,5 +541,8 @@ def receivable_cancel(request, pk):
     if status != "all":
         receivables = receivables.filter(status=status)
     return _render_partial(
-        request, "finance/partials/_receivable_table.html", {"receivables": receivables, "status": status}
+        request,
+        "finance/partials/_receivable_table.html",
+        {"receivables": receivables, "status": status},
+        trigger={"dashboard:refresh": True},
     )
