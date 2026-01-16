@@ -1,0 +1,146 @@
+<div class="row g-3 mb-4">
+  <div class="col-lg-8">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <h3 class="h6 fw-semibold">Saldo total no ano</h3>
+        <canvas id="investmentsTotalChart" height="120"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <h3 class="h6 fw-semibold">Variação percentual mensal</h3>
+        <canvas id="investmentsDeltaChart" height="120"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<section class="card border-0 shadow-sm mb-4">
+  <div class="card-body">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+      <div>
+        <h3 class="h6 fw-semibold mb-1">Evolução por conta</h3>
+        <p class="text-muted small mb-0">Ative a visualização para comparar contas.</p>
+      </div>
+      <div class="form-check form-switch">
+        <input class="form-check-input" type="checkbox" id="toggleAccountTrends" checked>
+        <label class="form-check-label" for="toggleAccountTrends">Exibir séries</label>
+      </div>
+    </div>
+    <canvas id="investmentsAccountChart" height="140"></canvas>
+  </div>
+</section>
+
+<section class="card border-0 shadow-sm mb-4">
+  <div class="card-body">
+    <h3 class="h6 fw-semibold mb-3">Totais mensais</h3>
+    <div class="table-responsive">
+      <table class="table table-sm align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Mês</th>
+            <th class="text-end">Saldo</th>
+            <th class="text-end">Delta</th>
+            <th class="text-end">% mês</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for delta in monthly_rows %}
+            <tr>
+              <td>{{ delta.month_name }}</td>
+              <td class="text-end">R$ {{ delta.total }}</td>
+              <td class="text-end">
+                {% if delta.delta_abs is None %}
+                  —
+                {% else %}
+                  R$ {{ delta.delta_abs }}
+                {% endif %}
+              </td>
+              <td class="text-end">
+                {% if delta.delta_pct is None %}
+                  ∞
+                {% else %}
+                  {{ delta.delta_pct|floatformat:2 }}%
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section class="card border-0 shadow-sm">
+  <div class="card-body">
+    <h3 class="h6 fw-semibold mb-3">Snapshots por conta</h3>
+    <div class="table-responsive">
+      <table class="table table-sm align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Conta</th>
+            <th>Mês</th>
+            <th class="text-end">Saldo</th>
+            <th class="text-end">Delta</th>
+            <th class="text-end">% mês</th>
+            <th class="text-end">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in account_rows %}
+            <tr>
+              <td>{{ row.account.name }}</td>
+              <td>{{ row.snapshot.month }}/{{ row.snapshot.year }}</td>
+              <td class="text-end">R$ {{ row.snapshot.balance }}</td>
+              <td class="text-end">
+                {% if row.delta_abs is None %}
+                  —
+                {% else %}
+                  R$ {{ row.delta_abs }}
+                {% endif %}
+              </td>
+              <td class="text-end">
+                {% if row.delta_pct is None %}
+                  ∞
+                {% else %}
+                  {{ row.delta_pct|floatformat:2 }}%
+                {% endif %}
+              </td>
+              <td class="text-end">
+                <div class="btn-group btn-group-sm">
+                  <button
+                    class="btn btn-outline-secondary"
+                    hx-get="{% url 'finance:investment-snapshot-edit' row.snapshot.id %}?year={{ year }}"
+                    hx-target="#modal-root"
+                    hx-swap="innerHTML"
+                  >
+                    Editar
+                  </button>
+                  <button
+                    class="btn btn-outline-danger"
+                    hx-post="{% url 'finance:investment-snapshot-delete' row.snapshot.id %}"
+                    hx-vals='{"summary_year": "{{ year }}"}'
+                    hx-target="#investments-summary"
+                    hx-swap="innerHTML"
+                  >
+                    Excluir
+                  </button>
+                </div>
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="6" class="text-muted">Nenhum snapshot para este ano.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+{{ total_chart|json_script:"investments-total-data" }}
+{{ delta_chart|json_script:"investments-delta-data" }}
+{{ account_chart|json_script:"investments-account-data" }}

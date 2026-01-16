@@ -1,0 +1,213 @@
+<section class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <p class="text-uppercase text-muted small mb-1">Receitas</p>
+        <h2 class="h4 fw-bold mb-0">R$ {{ income_total }}</h2>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <p class="text-uppercase text-muted small mb-1">Despesas</p>
+        <h2 class="h4 fw-bold mb-0">R$ {{ expense_total }}</h2>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <p class="text-uppercase text-muted small mb-1">Saldo</p>
+        <h2 class="h4 fw-bold mb-0">R$ {{ net_total }}</h2>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="row g-3 mb-4">
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <h3 class="h6 fw-semibold">Despesas por categoria</h3>
+        <canvas id="annualExpenseChart" height="200"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <h3 class="h6 fw-semibold">Receitas por categoria</h3>
+        <canvas id="annualIncomeChart" height="200"></canvas>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="card border-0 shadow-sm mb-4">
+  <div class="card-body">
+    <h3 class="h6 fw-semibold mb-3">Investimentos no ano</h3>
+    <div class="row g-3">
+      <div class="col-lg-6">
+        <p class="text-muted small mb-1">Saldo inicial</p>
+        <p class="fw-semibold mb-0">
+          {% if investment_start_total is None %}
+            —
+          {% else %}
+            R$ {{ investment_start_total }} ({{ investment_start_month_label }})
+          {% endif %}
+        </p>
+      </div>
+      <div class="col-lg-6">
+        <p class="text-muted small mb-1">Saldo final</p>
+        <p class="fw-semibold mb-0">
+          {% if investment_end_total is None %}
+            —
+          {% else %}
+            R$ {{ investment_end_total }} ({{ investment_end_month_label }})
+          {% endif %}
+        </p>
+      </div>
+      <div class="col-lg-6">
+        <p class="text-muted small mb-1">Delta anual</p>
+        <p class="fw-semibold mb-0">
+          {% if investment_delta_abs is None %}
+            —
+          {% else %}
+            R$ {{ investment_delta_abs }}
+          {% endif %}
+        </p>
+      </div>
+      <div class="col-lg-6">
+        <p class="text-muted small mb-1">% anual</p>
+        <p class="fw-semibold mb-0">
+          {% if investment_delta_pct is None %}
+            ∞
+          {% else %}
+            {{ investment_delta_pct|floatformat:2 }}%
+          {% endif %}
+        </p>
+      </div>
+    </div>
+    <div class="row g-3 mt-3">
+      <div class="col-lg-7">
+        <h4 class="h6 fw-semibold">Saldo mensal</h4>
+        <canvas id="annualInvestmentChart" height="160"></canvas>
+      </div>
+      <div class="col-lg-5">
+        <h4 class="h6 fw-semibold">Variação mensal (%)</h4>
+        <canvas id="annualInvestmentDeltaChart" height="160"></canvas>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="card border-0 shadow-sm mb-4">
+  <div class="card-body">
+    <h3 class="h6 fw-semibold mb-3">Totais por conta</h3>
+    <div class="table-responsive">
+      <table class="table table-sm align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Conta</th>
+            <th class="text-end">Receitas</th>
+            <th class="text-end">Despesas</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in income_by_account %}
+            <tr>
+              <td>{{ row.account__name|default:"Sem conta" }}</td>
+              <td class="text-end">R$ {{ row.total }}</td>
+              <td class="text-end">—</td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="3" class="text-muted">Sem receitas com conta vinculada.</td>
+            </tr>
+          {% endfor %}
+          {% for row in expense_by_account %}
+            <tr>
+              <td>{{ row.account__name|default:"Sem conta" }}</td>
+              <td class="text-end">—</td>
+              <td class="text-end">R$ {{ row.total }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section class="card border-0 shadow-sm mb-4">
+  <div class="card-body">
+    <h3 class="h6 fw-semibold mb-3">Despesas por grupo de parcelas</h3>
+    <div class="table-responsive">
+      <table class="table table-sm align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Grupo</th>
+            <th class="text-end">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in purchase_groups %}
+            <tr>
+              <td>{{ row.group__description }}</td>
+              <td class="text-end">R$ {{ row.total }}</td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="2" class="text-muted">Nenhuma parcela registrada.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section class="card border-0 shadow-sm">
+  <div class="card-body">
+    <h3 class="h6 fw-semibold mb-3">Delta mensal de investimentos</h3>
+    <div class="table-responsive">
+      <table class="table table-sm align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Mês</th>
+            <th class="text-end">Saldo</th>
+            <th class="text-end">Delta</th>
+            <th class="text-end">% mês</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for delta in investment_monthly_rows %}
+            <tr>
+              <td>{{ delta.month_name }}</td>
+              <td class="text-end">R$ {{ delta.total }}</td>
+              <td class="text-end">
+                {% if delta.delta_abs is None %}
+                  —
+                {% else %}
+                  R$ {{ delta.delta_abs }}
+                {% endif %}
+              </td>
+              <td class="text-end">
+                {% if delta.delta_pct is None %}
+                  ∞
+                {% else %}
+                  {{ delta.delta_pct|floatformat:2 }}%
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+{{ expense_chart|json_script:"annual-expense-chart-data" }}
+{{ income_chart|json_script:"annual-income-chart-data" }}
+{{ investment_chart|json_script:"annual-investment-chart-data" }}
+{{ investment_delta_chart|json_script:"annual-investment-delta-data" }}

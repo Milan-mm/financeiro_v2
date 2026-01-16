@@ -1,0 +1,49 @@
+<form
+  method="post"
+  hx-post="{% if snapshot %}{% url 'finance:investment-snapshot-edit' snapshot.id %}?year={{ summary_year }}{% else %}{% url 'finance:investment-snapshot-create' %}{% endif %}"
+  hx-target="#investments-summary"
+  hx-swap="innerHTML"
+>
+  {% csrf_token %}
+  <input type="hidden" name="summary_year" value="{{ summary_year }}">
+  <div class="p-4">
+    <h2 class="h5 fw-semibold mb-3">{% if snapshot %}Editar snapshot{% else %}Novo snapshot{% endif %}</h2>
+    <div class="mb-3">
+      {{ form.account.label_tag }}
+      {{ form.account }}
+      {% for error in form.account.errors %}
+        <div class="text-danger small">{{ error }}</div>
+      {% endfor %}
+    </div>
+    <div class="row g-3">
+      <div class="col-sm-6">
+        {{ form.year.label_tag }}
+        {{ form.year }}
+        {% for error in form.year.errors %}
+          <div class="text-danger small">{{ error }}</div>
+        {% endfor %}
+      </div>
+      <div class="col-sm-6">
+        {{ form.month.label_tag }}
+        {{ form.month }}
+        {% for error in form.month.errors %}
+          <div class="text-danger small">{{ error }}</div>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="mb-3 mt-3">
+      {{ form.balance.label_tag }}
+      {{ form.balance }}
+      {% for error in form.balance.errors %}
+        <div class="text-danger small">{{ error }}</div>
+      {% endfor %}
+    </div>
+    {% if form.non_field_errors %}
+      <div class="text-danger small mb-3">{{ form.non_field_errors }}</div>
+    {% endif %}
+  </div>
+  <div class="border-top p-3 d-flex justify-content-end gap-2">
+    <button type="button" class="btn btn-light" onclick="document.getElementById('modal-root').close();">Cancelar</button>
+    <button type="submit" class="btn btn-primary">Salvar</button>
+  </div>
+</form>

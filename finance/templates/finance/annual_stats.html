@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Estatísticas anuais{% endblock %}
+
+{% block content %}
+  <div class="dashboard-layout">
+    {% include "partials/nav.html" %}
+
+    <main class="main-content">
+      <div class="container-xxl py-4">
+        <header class="flex flex-col lg:flex-row items-start lg:items-center justify-content-between gap-4 mb-4">
+          <div>
+            <p class="text-uppercase text-muted fw-semibold small mb-1">Estatísticas</p>
+            <h1 class="h3 fw-bold mb-1">Resumo anual</h1>
+            <p class="text-muted mb-0">Veja desempenho de receitas, despesas e investimentos.</p>
+          </div>
+          <form
+            id="annual-year-form"
+            class="row g-2 align-items-end"
+            hx-get="{% url 'finance:annual-stats-summary' %}"
+            hx-target="#annual-stats-summary"
+            hx-swap="innerHTML"
+            hx-trigger="change"
+          >
+            <div class="col-auto">
+              <label class="form-label">Ano</label>
+              <select name="year" class="form-select">
+                {% for option in year_options %}
+                  <option value="{{ option }}" {% if option == year %}selected{% endif %}>{{ option }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </form>
+        </header>
+
+        <section
+          id="annual-stats-summary"
+          hx-get="{% url 'finance:annual-stats-summary' %}"
+          hx-target="#annual-stats-summary"
+          hx-swap="innerHTML"
+          hx-include="#annual-year-form"
+          hx-trigger="annual:refresh from:body"
+        >
+          {% include "finance/partials/_annual_stats_summary.html" with year=year %}
+        </section>
+      </div>
+    </main>
+  </div>
+{% endblock %}
+
+{% block extra_scripts %}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="{% static 'js/annual_stats_charts.js' %}"></script>
+{% endblock %}

@@ -8,6 +8,8 @@ from .models import (
     CardPurchaseGroup,
     Category,
     ImportItem,
+    InvestmentAccount,
+    InvestmentSnapshot,
     LedgerEntry,
     Receivable,
     RecurringInstance,
@@ -261,6 +263,48 @@ class ImportItemForm(forms.ModelForm):
             self.fields["category"].queryset = Category.objects.filter(
                 household=household, is_active=True
             )
+
+
+class InvestmentAccountForm(HouseholdScopedForm):
+    class Meta:
+        model = InvestmentAccount
+        fields = ["name", "institution", "active"]
+        labels = {
+            "name": "Nome",
+            "institution": "Instituição",
+            "active": "Ativa",
+        }
+
+
+class InvestmentSnapshotForm(HouseholdScopedForm):
+    class Meta:
+        model = InvestmentSnapshot
+        fields = ["account", "year", "month", "balance"]
+        labels = {
+            "account": "Conta",
+            "year": "Ano",
+            "month": "Mês",
+            "balance": "Saldo",
+        }
+
+    def __init__(self, *args, household=None, **kwargs):
+        super().__init__(*args, household=household, **kwargs)
+        if household is not None:
+            self.fields["account"].queryset = InvestmentAccount.objects.filter(
+                household=household, active=True
+            )
+
+    def clean_month(self):
+        month = self.cleaned_data.get("month")
+        if month is not None and (month < 1 or month > 12):
+            raise forms.ValidationError("Informe um mês válido.")
+        return month
+
+    def clean_balance(self):
+        balance = self.cleaned_data.get("balance")
+        if balance is not None and balance < 0:
+            raise forms.ValidationError("Saldo não pode ser negativo.")
+        return balance
 
 
 ImportReviewFormSet = modelformset_factory(

@@ -1,0 +1,51 @@
+<div class="table-responsive">
+  <table class="table align-middle">
+    <thead class="table-light">
+      <tr>
+        <th>Conta</th>
+        <th>Instituição</th>
+        <th>Status</th>
+        <th class="text-end">Ações</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for account in accounts %}
+        <tr>
+          <td class="fw-semibold">{{ account.name }}</td>
+          <td>{{ account.institution|default:"-" }}</td>
+          <td>
+            {% if account.active %}
+              <span class="badge bg-success">Ativa</span>
+            {% else %}
+              <span class="badge bg-secondary">Inativa</span>
+            {% endif %}
+          </td>
+          <td class="text-end">
+            <div class="btn-group btn-group-sm">
+              <button
+                class="btn btn-outline-secondary"
+                hx-get="{% url 'finance:investment-account-edit' account.id %}"
+                hx-target="#modal-root"
+                hx-swap="innerHTML"
+              >
+                Editar
+              </button>
+              <button
+                class="btn btn-outline-danger"
+                hx-post="{% url 'finance:investment-account-delete' account.id %}"
+                hx-target="#investment-account-table"
+                hx-swap="innerHTML"
+              >
+                Excluir
+              </button>
+            </div>
+          </td>
+        </tr>
+      {% empty %}
+        <tr>
+          <td colspan="4" class="text-muted">Nenhuma conta de investimento cadastrada.</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

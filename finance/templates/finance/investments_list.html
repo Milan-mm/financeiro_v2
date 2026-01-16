@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Investimentos{% endblock %}
+
+{% block content %}
+  <div class="dashboard-layout">
+    {% include "partials/nav.html" %}
+
+    <main class="main-content">
+      <div class="container-xxl py-4">
+        <header class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 mb-4">
+          <div>
+            <p class="text-uppercase text-muted fw-semibold small mb-1">Investimentos</p>
+            <h1 class="h3 fw-bold mb-1">Contas e snapshots</h1>
+            <p class="text-muted mb-0">Registre saldos mensais e acompanhe a evolução.</p>
+          </div>
+          <div class="d-flex flex-wrap gap-2">
+            <button
+              class="btn btn-outline-primary"
+              hx-get="{% url 'finance:investment-account-create' %}"
+              hx-target="#modal-root"
+              hx-swap="innerHTML"
+            >
+              <i class="bi bi-plus-lg me-2"></i>Nova conta
+            </button>
+            <button
+              class="btn btn-primary"
+              hx-get="{% url 'finance:investment-snapshot-create' %}?year={{ year }}"
+              hx-target="#modal-root"
+              hx-swap="innerHTML"
+            >
+              <i class="bi bi-graph-up-arrow me-2"></i>Novo snapshot
+            </button>
+          </div>
+        </header>
+
+        <section class="card border-0 shadow-sm mb-4">
+          <div class="card-body">
+            <form
+              id="investment-year-form"
+              class="row g-2 align-items-end"
+              hx-get="{% url 'finance:investments-summary' %}"
+              hx-target="#investments-summary"
+              hx-swap="innerHTML"
+              hx-trigger="change"
+            >
+              <div class="col-auto">
+                <label class="form-label">Ano</label>
+                <select name="year" class="form-select">
+                  {% for option in year_options %}
+                    <option value="{{ option }}" {% if option == year %}selected{% endif %}>{{ option }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </form>
+          </div>
+        </section>
+
+        <section class="card border-0 shadow-sm mb-4">
+          <div class="card-body" id="investment-account-table">
+            {% include "finance/partials/_investment_account_table.html" with accounts=accounts %}
+          </div>
+        </section>
+
+        <section class="card border-0 shadow-sm mb-4">
+          <div class="card-body">
+            <h3 class="h6 fw-semibold mb-3">Comparativo do mês atual</h3>
+            <div class="table-responsive">
+              <table class="table table-sm align-middle">
+                <thead class="table-light">
+                  <tr>
+                    <th>Conta</th>
+                    <th class="text-end">Saldo atual</th>
+                    <th class="text-end">Delta</th>
+                    <th class="text-end">% mês</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for row in account_overview %}
+                    <tr>
+                      <td>{{ row.account.name }}</td>
+                      <td class="text-end">
+                        {% if row.current_snapshot %}
+                          R$ {{ row.current_snapshot.balance }}
+                        {% else %}
+                          —
+                        {% endif %}
+                      </td>
+                      <td class="text-end">
+                        {% if row.delta_abs is None %}
+                          —
+                        {% else %}
+                          R$ {{ row.delta_abs }}
+                        {% endif %}
+                      </td>
+                      <td class="text-end">
+                        {% if row.delta_pct is None %}
+                          ∞
+                        {% else %}
+                          {{ row.delta_pct|floatformat:2 }}%
+                        {% endif %}
+                      </td>
+                    </tr>
+                  {% empty %}
+                    <tr>
+                      <td colspan="4" class="text-muted">Nenhum snapshot para o mês atual.</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section
+          id="investments-summary"
+          hx-get="{% url 'finance:investments-summary' %}"
+          hx-target="#investments-summary"
+          hx-swap="innerHTML"
+          hx-include="#investment-year-form"
+          hx-trigger="investments:refresh from:body"
+        >
+          {% include "finance/partials/_investments_summary.html" with year=year %}
+        </section>
+      </div>
+    </main>
+  </div>
+{% endblock %}
+
+{% block extra_scripts %}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="{% static 'js/investments_charts.js' %}"></script>
+{% endblock %}

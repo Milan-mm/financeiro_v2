@@ -362,3 +362,67 @@ class ImportItem(models.Model):
 
     def __str__(self):
         return self.description
+
+
+class InvestmentAccount(models.Model):
+    household = models.ForeignKey(
+        Household, on_delete=models.CASCADE, related_name="investment_accounts"
+    )
+    name = models.CharField(max_length=120)
+    institution = models.CharField(max_length=120, blank=True)
+    active = models.BooleanField(default=True)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="finance_investment_accounts_created",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["household", "name"], name="unique_investment_account_household"
+            )
+        ]
+
+    def __str__(self):
+        return self.name
+
+
+class InvestmentSnapshot(models.Model):
+    household = models.ForeignKey(
+        Household, on_delete=models.CASCADE, related_name="investment_snapshots"
+    )
+    account = models.ForeignKey(
+        InvestmentAccount, on_delete=models.CASCADE, related_name="snapshots"
+    )
+    year = models.PositiveIntegerField()
+    month = models.PositiveIntegerField()
+    balance = models.DecimalField(max_digits=14, decimal_places=2)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="finance_investment_snapshots_created",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-year", "-month"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["account", "year", "month"], name="unique_investment_snapshot_account_month"
+            )
+        ]
+        indexes = [
+            models.Index(fields=["household", "year", "month"], name="investment_household_ym_idx"),
+            models.Index(fields=["account", "year", "month"], name="investment_account_ym_idx"),
+        ]
+
+    def __str__(self):
+        return f"{self.account} {self.month}/{self.year}"

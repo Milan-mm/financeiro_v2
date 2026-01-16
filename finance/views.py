@@ -21,6 +21,8 @@ from .forms import (
     ImportPasteForm,
     ImportReviewFormSet,
     LedgerEntryForm,
+    InvestmentAccountForm,
+    InvestmentSnapshotForm,
     ReceivableForm,
     RecurringInstanceValueOverrideForm,
     RecurringRuleForm,
@@ -33,6 +35,8 @@ from .models import (
     ImportBatch,
     ImportItem,
     Installment,
+    InvestmentAccount,
+    InvestmentSnapshot,
     LedgerEntry,
     Receivable,
     RecurringInstance,
@@ -45,6 +49,12 @@ from .services import (
     pay_recurring_instance,
     regenerate_future_installments,
     build_import_items,
+)
+from .services_investments import (
+    compute_account_series,
+    compute_mom_deltas,
+    compute_monthly_totals,
+    get_investment_snapshots,
 )
 
 import json
@@ -994,3 +1004,426 @@ def import_confirm(request, pk):
 
     messages.success(request, "Importação confirmada.")
     return redirect("dashboard")
+
+
+def _investment_summary_context(request, year):
+    snapshots = list(get_investment_snapshots(request.household, year))
+    accounts = InvestmentAccount.objects.filter(household=request.household).order_by("name")
+    month_names = _month_names()
+    monthly_totals = compute_monthly_totals(snapshots)
+    deltas = compute_mom_deltas(monthly_totals)
+    account_series = compute_account_series(snapshots)
+
+    account_trends = []
+    for account in accounts:
+        series = account_series.get(account.id, [Decimal("0.00") for _ in range(12)])
+        account_trends.append(
+            {
+                "label": account.name,
+                "data": [float(value) for value in series],
+            }
+        )
+
+    account_rows = []
+    snapshots_by_account = {}
+    for snapshot in snapshots:
+        snapshots_by_account.setdefault(snapshot.account_id, []).append(snapshot)
+    for account in accounts:
+        account_snapshots = sorted(snapshots_by_account.get(account.id, []), key=lambda item: item.month)
+        previous_balance = None
+        for snapshot in account_snapshots:
+            if previous_balance is None:
+                delta_abs = None
+                delta_pct = None
+            else:
+                delta_abs = snapshot.balance - previous_balance
+                if previous_balance == 0 and snapshot.balance == 0:
+                    delta_pct = Decimal("0.00")
+                elif previous_balance == 0 and snapshot.balance != 0:
+                    delta_pct = None
+                else:
+                    delta_pct = (delta_abs / previous_balance) * Decimal("100.00")
+            account_rows.append(
+                {
+                    "account": account,
+                    "snapshot": snapshot,
+                    "delta_abs": delta_abs,
+                    "delta_pct": delta_pct,
+                }
+            )
+            previous_balance = snapshot.balance
+
+    monthly_rows = []
+    for delta in deltas:
+        monthly_rows.append(
+            {
+                "month": delta.month,
+                "month_name": month_names[delta.month - 1],
+                "total": delta.total,
+                "delta_abs": delta.delta_abs,
+                "delta_pct": delta.delta_pct,
+            }
+        )
+
+    context = {
+        "year": year,
+        "month_names": month_names,
+        "monthly_totals": monthly_totals,
+        "monthly_deltas": deltas,
+        "monthly_rows": monthly_rows,
+        "account_rows": account_rows,
+        "total_chart": {
+            "labels": month_names,
+            "data": [float(total) for total in monthly_totals],
+        },
+        "delta_chart": {
+            "labels": month_names,
+            "data": [
+                float(delta.delta_pct) if delta.delta_pct is not None else None for delta in deltas
+            ],
+        },
+        "account_chart": {
+            "labels": month_names,
+            "datasets": account_trends,
+        },
+    }
+    return context
+
+
+@login_required
+def investments_list(request):
+    today = timezone.localdate()
+    year = int(request.GET.get("year", today.year))
+    current_year = today.year
+    current_month = today.month
+    previous_month = 12 if current_month == 1 else current_month - 1
+    previous_year = current_year - 1 if current_month == 1 else current_year
+
+    accounts = InvestmentAccount.objects.filter(household=request.household).order_by("name")
+    account_overview = []
+    for account in accounts:
+        current_snapshot = InvestmentSnapshot.objects.filter(
+            household=request.household,
+            account=account,
+            year=current_year,
+            month=current_month,
+        ).first()
+        previous_snapshot = InvestmentSnapshot.objects.filter(
+            household=request.household,
+            account=account,
+            year=previous_year,
+            month=previous_month,
+        ).first()
+        delta_abs = None
+        delta_pct = None
+        if current_snapshot and previous_snapshot:
+            delta_abs = current_snapshot.balance - previous_snapshot.balance
+            if previous_snapshot.balance == 0 and current_snapshot.balance == 0:
+                delta_pct = Decimal("0.00")
+            elif previous_snapshot.balance == 0 and current_snapshot.balance != 0:
+                delta_pct = None
+            else:
+                delta_pct = (delta_abs / previous_snapshot.balance) * Decimal("100.00")
+        account_overview.append(
+            {
+                "account": account,
+                "current_snapshot": current_snapshot,
+                "previous_snapshot": previous_snapshot,
+                "delta_abs": delta_abs,
+                "delta_pct": delta_pct,
+            }
+        )
+
+    summary_context = _investment_summary_context(request, year)
+    context = {
+        "accounts": accounts,
+        "account_overview": account_overview,
+        "year": year,
+        "year_options": _year_options(year),
+        **summary_context,
+    }
+    return render(request, "finance/investments_list.html", context)
+
+
+@login_required
+def investments_summary(request):
+    year = int(request.GET.get("year"))
+    context = _investment_summary_context(request, year)
+    return render(request, "finance/partials/_investments_summary.html", context)
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def investment_account_create(request):
+    if request.method == "POST":
+        form = InvestmentAccountForm(request.POST, household=request.household)
+        if form.is_valid():
+            account = form.save(commit=False)
+            account.household = request.household
+            account.created_by = request.user
+            account.save()
+            accounts = InvestmentAccount.objects.filter(household=request.household).order_by("name")
+            return _render_partial(
+                request,
+                "finance/partials/_investment_account_table.html",
+                {"accounts": accounts},
+                trigger={"closeModal": True, "investments:refresh": True},
+            )
+    else:
+        form = InvestmentAccountForm(household=request.household)
+    return render(request, "finance/partials/_investment_account_form.html", {"form": form})
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def investment_account_edit(request, pk):
+    account = get_object_or_404(InvestmentAccount, pk=pk, household=request.household)
+    if request.method == "POST":
+        form = InvestmentAccountForm(request.POST, instance=account, household=request.household)
+        if form.is_valid():
+            form.save()
+            accounts = InvestmentAccount.objects.filter(household=request.household).order_by("name")
+            return _render_partial(
+                request,
+                "finance/partials/_investment_account_table.html",
+                {"accounts": accounts},
+                trigger={"closeModal": True, "investments:refresh": True},
+            )
+    else:
+        form = InvestmentAccountForm(instance=account, household=request.household)
+    return render(
+        request,
+        "finance/partials/_investment_account_form.html",
+        {"form": form, "account": account},
+    )
+
+
+@login_required
+@require_http_methods(["POST"])
+def investment_account_delete(request, pk):
+    account = get_object_or_404(InvestmentAccount, pk=pk, household=request.household)
+    account.delete()
+    accounts = InvestmentAccount.objects.filter(household=request.household).order_by("name")
+    return _render_partial(
+        request,
+        "finance/partials/_investment_account_table.html",
+        {"accounts": accounts},
+        trigger={"investments:refresh": True},
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def investment_snapshot_create(request):
+    initial = {}
+    if "account_id" in request.GET:
+        initial["account"] = get_object_or_404(
+            InvestmentAccount, pk=request.GET.get("account_id"), household=request.household
+        )
+    if "year" in request.GET:
+        initial["year"] = int(request.GET.get("year"))
+    if "month" in request.GET:
+        initial["month"] = int(request.GET.get("month"))
+    summary_year = request.GET.get("year") or timezone.localdate().year
+
+    if request.method == "POST":
+        form = InvestmentSnapshotForm(request.POST, household=request.household)
+        if form.is_valid():
+            snapshot = form.save(commit=False)
+            snapshot.household = request.household
+            snapshot.created_by = request.user
+            snapshot.save()
+            return _render_partial(
+                request,
+                "finance/partials/_investments_summary.html",
+                _investment_summary_context(request, int(request.POST.get("summary_year", summary_year))),
+                trigger={"closeModal": True},
+            )
+    else:
+        form = InvestmentSnapshotForm(initial=initial, household=request.household)
+    return render(
+        request,
+        "finance/partials/_investment_snapshot_form.html",
+        {"form": form, "summary_year": summary_year},
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def investment_snapshot_edit(request, pk):
+    snapshot = get_object_or_404(InvestmentSnapshot, pk=pk, household=request.household)
+    summary_year = request.GET.get("year") or snapshot.year
+    if request.method == "POST":
+        form = InvestmentSnapshotForm(request.POST, instance=snapshot, household=request.household)
+        if form.is_valid():
+            form.save()
+            return _render_partial(
+                request,
+                "finance/partials/_investments_summary.html",
+                _investment_summary_context(request, int(request.POST.get("summary_year", summary_year))),
+                trigger={"closeModal": True},
+            )
+    else:
+        form = InvestmentSnapshotForm(instance=snapshot, household=request.household)
+    return render(
+        request,
+        "finance/partials/_investment_snapshot_form.html",
+        {"form": form, "summary_year": summary_year, "snapshot": snapshot},
+    )
+
+
+@login_required
+@require_http_methods(["POST"])
+def investment_snapshot_delete(request, pk):
+    snapshot = get_object_or_404(InvestmentSnapshot, pk=pk, household=request.household)
+    summary_year = request.POST.get("summary_year", snapshot.year)
+    snapshot.delete()
+    return _render_partial(
+        request,
+        "finance/partials/_investments_summary.html",
+        _investment_summary_context(request, int(summary_year)),
+    )
+
+
+def _annual_stats_context(request, year):
+    entries = LedgerEntry.objects.filter(household=request.household, date__year=year)
+    decimal_output = models.DecimalField(max_digits=12, decimal_places=2)
+    income_total = entries.filter(kind=LedgerEntry.Kind.INCOME).aggregate(
+        total=Coalesce(Sum("amount"), Decimal("0.00"), output_field=decimal_output)
+    )["total"]
+    expense_total = entries.filter(kind=LedgerEntry.Kind.EXPENSE).aggregate(
+        total=Coalesce(Sum("amount"), Decimal("0.00"), output_field=decimal_output)
+    )["total"]
+    net_total = income_total - expense_total
+
+    income_by_category = list(
+        entries.filter(kind=LedgerEntry.Kind.INCOME)
+        .values("category__name")
+        .annotate(total=Coalesce(Sum("amount"), Decimal("0.00"), output_field=decimal_output))
+        .order_by("-total")
+    )
+    expense_by_category = list(
+        entries.filter(kind=LedgerEntry.Kind.EXPENSE)
+        .values("category__name")
+        .annotate(total=Coalesce(Sum("amount"), Decimal("0.00"), output_field=decimal_output))
+        .order_by("-total")
+    )
+    income_by_account = list(
+        entries.filter(kind=LedgerEntry.Kind.INCOME)
+        .values("account__name")
+        .annotate(total=Coalesce(Sum("amount"), Decimal("0.00"), output_field=decimal_output))
+        .order_by("-total")
+    )
+    expense_by_account = list(
+        entries.filter(kind=LedgerEntry.Kind.EXPENSE)
+        .values("account__name")
+        .annotate(total=Coalesce(Sum("amount"), Decimal("0.00"), output_field=decimal_output))
+        .order_by("-total")
+    )
+    purchase_groups = list(
+        Installment.objects.filter(household=request.household, due_date__year=year)
+        .values("group__description")
+        .annotate(total=Coalesce(Sum("amount"), Decimal("0.00"), output_field=decimal_output))
+        .order_by("-total")
+    )
+
+    snapshots = list(get_investment_snapshots(request.household, year))
+    month_names = _month_names()
+    monthly_totals = compute_monthly_totals(snapshots)
+    monthly_deltas = compute_mom_deltas(monthly_totals)
+    investment_monthly_rows = [
+        {
+            "month": delta.month,
+            "month_name": month_names[delta.month - 1],
+            "total": delta.total,
+            "delta_abs": delta.delta_abs,
+            "delta_pct": delta.delta_pct,
+        }
+        for delta in monthly_deltas
+    ]
+    months_with_data = {snapshot.month for snapshot in snapshots}
+    if months_with_data:
+        start_month = min(months_with_data)
+        end_month = max(months_with_data)
+        start_total = monthly_totals[start_month - 1]
+        end_total = monthly_totals[end_month - 1]
+        delta_abs = end_total - start_total
+        if start_total == 0 and end_total == 0:
+            delta_pct = Decimal("0.00")
+        elif start_total == 0 and end_total != 0:
+            delta_pct = None
+        else:
+            delta_pct = (delta_abs / start_total) * Decimal("100.00")
+    else:
+        start_month = None
+        end_month = None
+        start_total = None
+        end_total = None
+        delta_abs = None
+        delta_pct = None
+    start_month_label = month_names[start_month - 1] if start_month else None
+    end_month_label = month_names[end_month - 1] if end_month else None
+
+    context = {
+        "year": year,
+        "income_total": income_total,
+        "expense_total": expense_total,
+        "net_total": net_total,
+        "income_by_category": income_by_category,
+        "expense_by_category": expense_by_category,
+        "income_by_account": income_by_account,
+        "expense_by_account": expense_by_account,
+        "purchase_groups": purchase_groups,
+        "investment_start_month": start_month,
+        "investment_end_month": end_month,
+        "investment_start_month_label": start_month_label,
+        "investment_end_month_label": end_month_label,
+        "investment_start_total": start_total,
+        "investment_end_total": end_total,
+        "investment_delta_abs": delta_abs,
+        "investment_delta_pct": delta_pct,
+        "investment_monthly_totals": monthly_totals,
+        "investment_monthly_deltas": monthly_deltas,
+        "investment_monthly_rows": investment_monthly_rows,
+        "expense_chart": {
+            "labels": [row["category__name"] or "Sem categoria" for row in expense_by_category],
+            "data": [float(row["total"]) for row in expense_by_category],
+        },
+        "income_chart": {
+            "labels": [row["category__name"] or "Sem categoria" for row in income_by_category],
+            "data": [float(row["total"]) for row in income_by_category],
+        },
+        "investment_chart": {
+            "labels": month_names,
+            "data": [float(total) for total in monthly_totals],
+        },
+        "investment_delta_chart": {
+            "labels": month_names,
+            "data": [
+                float(delta.delta_pct) if delta.delta_pct is not None else None
+                for delta in monthly_deltas
+            ],
+        },
+        "month_names": month_names,
+    }
+    return context
+
+
+@login_required
+def annual_stats(request):
+    today = timezone.localdate()
+    year = int(request.GET.get("year", today.year))
+    summary_context = _annual_stats_context(request, year)
+    context = {
+        "year": year,
+        "year_options": _year_options(year),
+        **summary_context,
+    }
+    return render(request, "finance/annual_stats.html", context)
+
+
+@login_required
+def annual_stats_summary(request):
+    year = int(request.GET.get("year"))
+    context = _annual_stats_context(request, year)
+    return render(request, "finance/partials/_annual_stats_summary.html", context)

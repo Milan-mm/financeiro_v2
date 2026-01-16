@@ -12,7 +12,15 @@ from django.shortcuts import redirect, render
 from django.views.decorators.http import require_http_methods
 
 from .forms import CardForm, CardPurchaseForm, RecurringExpenseForm, UserRegisterForm
-from .models import Card, CardPurchase, RecurringExpense, RecurringPayment, Category, SystemLog
+from .models import (
+    Card,
+    CardPurchase,
+    HouseholdMembership,
+    RecurringExpense,
+    RecurringPayment,
+    Category,
+    SystemLog,
+)
 from .utils_webhook import FinanceBot
 
 
@@ -637,9 +645,26 @@ def recurring_payment_toggle_api(request):
     return JsonResponse({"is_paid": payment.is_paid})
 
 
+def _can_manage_logs(request):
+    if request.user.is_superuser:
+        return True
+    if request.household is None:
+        return False
+    return HouseholdMembership.objects.filter(
+        user=request.user, household=request.household, is_primary=True
+    ).exists()
+
+
+def _system_logs_context():
+    logs = SystemLog.objects.order_by("-created_at")
+    return {"logs": logs}
+
+
 @login_required
 def system_logs_view(request):
-    return render(request, "core/system_logs.html")
+    if not _can_manage_logs(request):
+        return HttpResponseForbidden("Acesso negado.")
+    return render(request, "core/system_logs.html", _system_logs_context())
 
 
 @require_http_methods(["POST"])
@@ -663,7 +688,9 @@ def log_error_api(request):
 @login_required
 @require_http_methods(["GET"])
 def system_logs_api(request):
-    logs = SystemLog.objects.all()
+    if not _can_manage_logs(request):
+        return JsonResponse({"error": "Acesso negado."}, status=403)
+    logs = SystemLog.objects.order_by("-created_at")
     data = [
         {
             "id": log.id,
@@ -684,6 +711,8 @@ def system_logs_api(request):
 @login_required
 @require_http_methods(["PATCH", "DELETE"])
 def system_log_detail_api(request, log_id):
+    if not _can_manage_logs(request):
+        return JsonResponse({"error": "Acesso negado."}, status=403)
     log = get_object_or_404(SystemLog, pk=log_id)
     if request.method == "DELETE":
         log.delete()
@@ -701,8 +730,35 @@ def system_log_detail_api(request, log_id):
 @login_required
 @require_http_methods(["GET"])
 def system_logs_pending_count_api(request):
+    if not _can_manage_logs(request):
+        return JsonResponse({"pending": 0})
     count = SystemLog.objects.filter(is_resolved=False).count()
     return JsonResponse({"pending": count})
+
+
+@login_required
+@require_http_methods(["POST"])
+def system_log_resolve(request, log_id):
+    if not _can_manage_logs(request):
+        return JsonResponse({"error": "Acesso negado."}, status=403)
+    log = get_object_or_404(SystemLog, pk=log_id)
+    log.is_resolved = True
+    log.save(update_fields=["is_resolved"])
+    response = render(request, "core/partials/_system_logs_table.html", _system_logs_context())
+    response["HX-Trigger"] = "logs:refresh"
+    return response
+
+
+@login_required
+@require_http_methods(["POST"])
+def system_log_delete(request, log_id):
+    if not _can_manage_logs(request):
+        return JsonResponse({"error": "Acesso negado."}, status=403)
+    log = get_object_or_404(SystemLog, pk=log_id)
+    log.delete()
+    response = render(request, "core/partials/_system_logs_table.html", _system_logs_context())
+    response["HX-Trigger"] = "logs:refresh"
+    return response
 
 import logging
 import re
@@ -710,7 +766,7 @@ from decimal import Decimal
 from django.db.models import Sum
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseForbidden
 from django.core.cache import cache
 from django.contrib.auth.models import User
 from twilio.twiml.messaging_response import MessagingResponse

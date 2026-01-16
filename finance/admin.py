@@ -8,6 +8,8 @@ from .models import (
     ImportBatch,
     ImportItem,
     Installment,
+    InvestmentAccount,
+    InvestmentSnapshot,
     LedgerEntry,
     Receivable,
     RecurringInstance,
@@ -88,3 +90,16 @@ class ImportBatchAdmin(admin.ModelAdmin):
 class ImportItemAdmin(admin.ModelAdmin):
     list_display = ("batch", "date", "description", "amount", "installments_count", "removed")
     list_filter = ("removed",)
+
+
+@admin.register(InvestmentAccount)
+class InvestmentAccountAdmin(admin.ModelAdmin):
+    list_display = ("name", "institution", "household", "active")
+    list_filter = ("household", "active")
+    search_fields = ("name", "institution")
+
+
+@admin.register(InvestmentSnapshot)
+class InvestmentSnapshotAdmin(admin.ModelAdmin):
+    list_display = ("account", "year", "month", "balance", "household")
+    list_filter = ("year", "month", "household")

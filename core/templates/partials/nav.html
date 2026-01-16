@@ -54,6 +54,18 @@
       </a>
     </li>
     <li class="nav-item">
+      <a class="nav-link {% if current == 'finance:investments' %}active{% endif %}" href="{% url 'finance:investments' %}">
+        <i class="bi bi-graph-up-arrow"></i>
+        <span>Investimentos</span>
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if current == 'finance:annual-stats' %}active{% endif %}" href="{% url 'finance:annual-stats' %}">
+        <i class="bi bi-bar-chart"></i>
+        <span>Estatísticas anuais</span>
+      </a>
+    </li>
+    <li class="nav-item">
       <a class="nav-link {% if current == 'finance:import-start' %}active{% endif %}" href="{% url 'finance:import-start' %}">
         <i class="bi bi-cloud-upload"></i>
         <span>Importador</span>
