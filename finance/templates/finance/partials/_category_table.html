@@ -1,0 +1,23 @@
+{% include "partials/messages.html" %}
+<div class="table-responsive">
+  <table class="table table-sm align-middle">
+    <thead class="table-light">
+      <tr>
+        <th>Nome</th>
+        <th>Cor</th>
+        <th>Status</th>
+        <th>Ordem</th>
+        <th class="text-end">Ações</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for category in categories %}
+        {% include "finance/partials/_category_row.html" %}
+      {% empty %}
+        <tr>
+          <td colspan="5" class="text-muted">Nenhuma categoria cadastrada.</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

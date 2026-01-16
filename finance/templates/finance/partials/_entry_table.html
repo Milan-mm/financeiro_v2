@@ -1,0 +1,25 @@
+{% include "partials/messages.html" %}
+<div class="table-responsive">
+  <table class="table table-sm align-middle">
+    <thead class="table-light">
+      <tr>
+        <th>Data</th>
+        <th>Descrição</th>
+        <th>Tipo</th>
+        <th>Categoria</th>
+        <th>Conta</th>
+        <th class="text-end">Valor</th>
+        <th class="text-end">Ações</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for entry in entries %}
+        {% include "finance/partials/_entry_row.html" %}
+      {% empty %}
+        <tr>
+          <td colspan="7" class="text-muted">Nenhum lançamento no período.</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

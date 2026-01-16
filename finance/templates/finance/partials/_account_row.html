@@ -1,0 +1,31 @@
+<tr>
+  <td>{{ account.name }}</td>
+  <td>{{ account.institution|default:"-" }}</td>
+  <td>{{ account.get_type_display }}</td>
+  <td>
+    {% if account.is_active %}
+      <span class="badge text-bg-success">Ativa</span>
+    {% else %}
+      <span class="badge text-bg-secondary">Inativa</span>
+    {% endif %}
+  </td>
+  <td class="text-end">
+    <button
+      class="btn btn-outline-secondary btn-sm"
+      hx-get="{% url 'finance:account-edit' account.id %}"
+      hx-target="#modal-root"
+      hx-swap="innerHTML"
+    >
+      Editar
+    </button>
+    <button
+      class="btn btn-outline-danger btn-sm"
+      hx-post="{% url 'finance:account-delete' account.id %}"
+      hx-target="#account-table"
+      hx-swap="innerHTML"
+      hx-confirm="Remover esta conta?"
+    >
+      Excluir
+    </button>
+  </td>
+</tr>

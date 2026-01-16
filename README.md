@@ -27,6 +27,7 @@ npm run build:css
 # or for watch mode:
 # npm run watch:css
 ```
+Tailwind output is generated locally at `static/css/tailwind.css` and is not committed to git.
 
 ### 5) Bootstrap household
 ```bash

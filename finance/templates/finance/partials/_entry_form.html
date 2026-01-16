@@ -1,0 +1,64 @@
+<form
+  method="post"
+  hx-post="{% if entry %}{% url 'finance:entry-edit' entry.id %}{% else %}{% url 'finance:entry-create' %}{% endif %}"
+  hx-target="#entry-table"
+  hx-swap="innerHTML"
+>
+  {% csrf_token %}
+  <input type="hidden" name="year" value="{{ year }}" />
+  <input type="hidden" name="month" value="{{ month }}" />
+  <div class="p-4">
+    <h2 class="h5 fw-semibold mb-3">{% if entry %}Editar lançamento{% else %}Novo lançamento{% endif %}</h2>
+    <div class="mb-3">
+      {{ form.date.label_tag }}
+      {{ form.date }}
+      {% for error in form.date.errors %}
+        <div class="text-danger small">{{ error }}</div>
+      {% endfor %}
+    </div>
+    <div class="mb-3">
+      {{ form.kind.label_tag }}
+      {{ form.kind }}
+      {% for error in form.kind.errors %}
+        <div class="text-danger small">{{ error }}</div>
+      {% endfor %}
+    </div>
+    <div class="mb-3">
+      {{ form.amount.label_tag }}
+      {{ form.amount }}
+      {% for error in form.amount.errors %}
+        <div class="text-danger small">{{ error }}</div>
+      {% endfor %}
+    </div>
+    <div class="mb-3">
+      {{ form.description.label_tag }}
+      {{ form.description }}
+      {% for error in form.description.errors %}
+        <div class="text-danger small">{{ error }}</div>
+      {% endfor %}
+    </div>
+    <div class="mb-3">
+      {{ form.category.label_tag }}
+      {{ form.category }}
+      {% for error in form.category.errors %}
+        <div class="text-danger small">{{ error }}</div>
+      {% endfor %}
+    </div>
+    <div class="mb-3">
+      {{ form.account.label_tag }}
+      {{ form.account }}
+      {% for error in form.account.errors %}
+        <div class="text-danger small">{{ error }}</div>
+      {% endfor %}
+    </div>
+    {% if form.non_field_errors %}
+      <div class="text-danger small mb-3">
+        {{ form.non_field_errors }}
+      </div>
+    {% endif %}
+  </div>
+  <div class="border-top p-3 d-flex justify-content-end gap-2">
+    <button type="button" class="btn btn-light" onclick="document.getElementById('modal-root').close();">Cancelar</button>
+    <button type="submit" class="btn btn-primary">Salvar</button>
+  </div>
+</form>

@@ -1,0 +1,24 @@
+{% include "partials/messages.html" %}
+<div class="table-responsive">
+  <table class="table table-sm align-middle">
+    <thead class="table-light">
+      <tr>
+        <th>Data</th>
+        <th>Descrição</th>
+        <th>Categoria</th>
+        <th>Status</th>
+        <th class="text-end">Valor</th>
+        <th class="text-end">Ações</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for receivable in receivables %}
+        {% include "finance/partials/_receivable_row.html" %}
+      {% empty %}
+        <tr>
+          <td colspan="6" class="text-muted">Nenhum recebível encontrado.</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

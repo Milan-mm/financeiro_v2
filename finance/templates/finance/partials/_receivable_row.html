@@ -1,0 +1,59 @@
+<tr>
+  <td>{{ receivable.expected_date|date:"d/m/Y" }}</td>
+  <td>{{ receivable.description }}</td>
+  <td>{{ receivable.category.name|default:"-" }}</td>
+  <td>
+    {% if receivable.status == "RECEIVED" %}
+      <span class="badge text-bg-success">Recebido</span>
+    {% elif receivable.status == "CANCELED" %}
+      <span class="badge text-bg-secondary">Cancelado</span>
+    {% else %}
+      <span class="badge text-bg-warning">Esperado</span>
+    {% endif %}
+  </td>
+  <td class="text-end">R$ {{ receivable.amount }}</td>
+  <td class="text-end">
+    <button
+      class="btn btn-outline-secondary btn-sm"
+      hx-get="{% url 'finance:receivable-edit' receivable.id %}"
+      hx-target="#modal-root"
+      hx-swap="innerHTML"
+    >
+      Editar
+    </button>
+    {% if receivable.status != "RECEIVED" %}
+      <button
+        class="btn btn-outline-success btn-sm"
+        hx-post="{% url 'finance:receivable-receive' receivable.id %}"
+        hx-target="#receivable-table"
+        hx-swap="innerHTML"
+        hx-include="[name='status']"
+        hx-confirm="Marcar como recebido?"
+      >
+        Receber
+      </button>
+    {% endif %}
+    {% if receivable.status != "CANCELED" %}
+      <button
+        class="btn btn-outline-warning btn-sm"
+        hx-post="{% url 'finance:receivable-cancel' receivable.id %}"
+        hx-target="#receivable-table"
+        hx-swap="innerHTML"
+        hx-include="[name='status']"
+        hx-confirm="Cancelar este recebível?"
+      >
+        Cancelar
+      </button>
+    {% endif %}
+    <button
+      class="btn btn-outline-danger btn-sm"
+      hx-post="{% url 'finance:receivable-delete' receivable.id %}"
+      hx-target="#receivable-table"
+      hx-swap="innerHTML"
+      hx-include="[name='status']"
+      hx-confirm="Remover este recebível?"
+    >
+      Excluir
+    </button>
+  </td>
+</tr>

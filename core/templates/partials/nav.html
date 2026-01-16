@@ -1,4 +1,4 @@
-{% with current=request.resolver_match.url_name %}
+{% with current=request.resolver_match.view_name %}
 <nav class="sidebar">
   <div class="sidebar-brand">
     <i class="bi bi-graph-up-arrow"></i>
@@ -9,6 +9,30 @@
       <a class="nav-link {% if current == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' %}">
         <i class="bi bi-house"></i>
         <span>Home</span>
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if current == 'finance:categories' %}active{% endif %}" href="{% url 'finance:categories' %}">
+        <i class="bi bi-tags"></i>
+        <span>Categorias</span>
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if current == 'finance:accounts' %}active{% endif %}" href="{% url 'finance:accounts' %}">
+        <i class="bi bi-bank"></i>
+        <span>Contas</span>
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if current == 'finance:entries' %}active{% endif %}" href="{% url 'finance:entries' %}">
+        <i class="bi bi-journal-text"></i>
+        <span>Lançamentos</span>
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if current == 'finance:receivables' %}active{% endif %}" href="{% url 'finance:receivables' %}">
+        <i class="bi bi-cash-coin"></i>
+        <span>Recebíveis</span>
       </a>
     </li>
     <li class="nav-item">

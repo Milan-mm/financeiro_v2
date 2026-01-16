@@ -37,6 +37,20 @@
       crossorigin="anonymous"
     ></script>
     <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <script>
+      const modalRoot = document.getElementById("modal-root");
+      document.body.addEventListener("htmx:afterSwap", (event) => {
+        if (event.detail.target.id === "modal-root" && modalRoot?.showModal) {
+          modalRoot.showModal();
+        }
+      });
+      document.body.addEventListener("closeModal", () => {
+        if (modalRoot?.open) {
+          modalRoot.close();
+          modalRoot.innerHTML = "";
+        }
+      });
+    </script>
     {% block extra_scripts %}{% endblock %}
   </body>
 </html>

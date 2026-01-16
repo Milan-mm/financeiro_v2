@@ -1,0 +1,33 @@
+<tr>
+  <td>{{ category.name }}</td>
+  <td>
+    <span class="badge" style="background-color: {{ category.color }};">{{ category.color }}</span>
+  </td>
+  <td>
+    {% if category.is_active %}
+      <span class="badge text-bg-success">Ativa</span>
+    {% else %}
+      <span class="badge text-bg-secondary">Inativa</span>
+    {% endif %}
+  </td>
+  <td>{{ category.ordering }}</td>
+  <td class="text-end">
+    <button
+      class="btn btn-outline-secondary btn-sm"
+      hx-get="{% url 'finance:category-edit' category.id %}"
+      hx-target="#modal-root"
+      hx-swap="innerHTML"
+    >
+      Editar
+    </button>
+    <button
+      class="btn btn-outline-danger btn-sm"
+      hx-post="{% url 'finance:category-delete' category.id %}"
+      hx-target="#category-table"
+      hx-swap="innerHTML"
+      hx-confirm="Remover esta categoria?"
+    >
+      Excluir
+    </button>
+  </td>
+</tr>

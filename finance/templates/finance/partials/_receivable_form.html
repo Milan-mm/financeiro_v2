@@ -1,0 +1,62 @@
+<form
+  method="post"
+  hx-post="{% if receivable %}{% url 'finance:receivable-edit' receivable.id %}{% else %}{% url 'finance:receivable-create' %}{% endif %}"
+  hx-target="#receivable-table"
+  hx-swap="innerHTML"
+>
+  {% csrf_token %}
+  <div class="p-4">
+    <h2 class="h5 fw-semibold mb-3">{% if receivable %}Editar recebível{% else %}Novo recebível{% endif %}</h2>
+    <div class="mb-3">
+      {{ form.expected_date.label_tag }}
+      {{ form.expected_date }}
+      {% for error in form.expected_date.errors %}
+        <div class="text-danger small">{{ error }}</div>
+      {% endfor %}
+    </div>
+    <div class="mb-3">
+      {{ form.amount.label_tag }}
+      {{ form.amount }}
+      {% for error in form.amount.errors %}
+        <div class="text-danger small">{{ error }}</div>
+      {% endfor %}
+    </div>
+    <div class="mb-3">
+      {{ form.description.label_tag }}
+      {{ form.description }}
+      {% for error in form.description.errors %}
+        <div class="text-danger small">{{ error }}</div>
+      {% endfor %}
+    </div>
+    <div class="mb-3">
+      {{ form.status.label_tag }}
+      {{ form.status }}
+      {% for error in form.status.errors %}
+        <div class="text-danger small">{{ error }}</div>
+      {% endfor %}
+    </div>
+    <div class="mb-3">
+      {{ form.category.label_tag }}
+      {{ form.category }}
+      {% for error in form.category.errors %}
+        <div class="text-danger small">{{ error }}</div>
+      {% endfor %}
+    </div>
+    <div class="mb-3">
+      {{ form.account.label_tag }}
+      {{ form.account }}
+      {% for error in form.account.errors %}
+        <div class="text-danger small">{{ error }}</div>
+      {% endfor %}
+    </div>
+    {% if form.non_field_errors %}
+      <div class="text-danger small mb-3">
+        {{ form.non_field_errors }}
+      </div>
+    {% endif %}
+  </div>
+  <div class="border-top p-3 d-flex justify-content-end gap-2">
+    <button type="button" class="btn btn-light" onclick="document.getElementById('modal-root').close();">Cancelar</button>
+    <button type="submit" class="btn btn-primary">Salvar</button>
+  </div>
+</form>

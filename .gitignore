@@ -38,6 +38,8 @@ db.sqlite3-journal
 # ==================================================
 staticfiles/
 staticfiles_collected_s3/
+static/css/tailwind.css
+static/css/*.map
 media/
 media_local/
 

@@ -1,0 +1,23 @@
+{% include "partials/messages.html" %}
+<div class="table-responsive">
+  <table class="table table-sm align-middle">
+    <thead class="table-light">
+      <tr>
+        <th>Nome</th>
+        <th>Instituição</th>
+        <th>Tipo</th>
+        <th>Status</th>
+        <th class="text-end">Ações</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for account in accounts %}
+        {% include "finance/partials/_account_row.html" %}
+      {% empty %}
+        <tr>
+          <td colspan="5" class="text-muted">Nenhuma conta cadastrada.</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

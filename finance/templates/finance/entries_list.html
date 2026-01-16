@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Lançamentos{% endblock %}
+
+{% block content %}
+  <div class="dashboard-layout">
+    {% include "partials/nav.html" %}
+
+    <main class="main-content">
+      <div class="container-xxl py-4">
+        <header class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 mb-4">
+          <div>
+            <p class="text-uppercase text-muted fw-semibold small mb-1">Lançamentos</p>
+            <h1 class="h3 fw-bold mb-1">Entradas e saídas</h1>
+            <p class="text-muted mb-0">Controle receitas e despesas do mês.</p>
+          </div>
+          <button
+            class="btn btn-primary"
+            hx-get="{% url 'finance:entry-create' %}?year={{ year }}&month={{ month }}"
+            hx-target="#modal-root"
+            hx-swap="innerHTML"
+          >
+            <i class="bi bi-plus-lg me-2"></i>Novo lançamento
+          </button>
+        </header>
+
+        <section class="card border-0 shadow-sm mb-3">
+          <div class="card-body">
+            <form
+              class="row g-2 align-items-end"
+              hx-get="{% url 'finance:entries' %}"
+              hx-target="#entry-table"
+              hx-swap="innerHTML"
+            >
+              <div class="col-sm-4">
+                <label class="form-label">Ano</label>
+                <input class="form-control" type="number" name="year" value="{{ year }}" />
+              </div>
+              <div class="col-sm-4">
+                <label class="form-label">Mês</label>
+                <input class="form-control" type="number" name="month" min="1" max="12" value="{{ month }}" />
+              </div>
+              <div class="col-sm-4">
+                <button class="btn btn-outline-primary w-100" type="submit">Filtrar</button>
+              </div>
+            </form>
+          </div>
+        </section>
+
+        <section class="card border-0 shadow-sm">
+          <div class="card-body" id="entry-table">
+            {% include "finance/partials/_entry_table.html" %}
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+{% endblock %}
