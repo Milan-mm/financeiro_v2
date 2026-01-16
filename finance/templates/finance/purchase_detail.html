@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Parcelas{% endblock %}
+
+{% block content %}
+  <div class="dashboard-layout">
+    {% include "partials/nav.html" %}
+
+    <main class="main-content">
+      <div class="container-xxl py-4">
+        <header class="mb-4">
+          <p class="text-uppercase text-muted fw-semibold small mb-1">Compra parcelada</p>
+          <h1 class="h3 fw-bold mb-1">{{ group.description }}</h1>
+          <p class="text-muted mb-0">Cartão {{ group.card.name }} · {{ group.installments_count }}x</p>
+        </header>
+
+        <section class="card border-0 shadow-sm">
+          <div class="card-body">
+            <div class="table-responsive">
+              <table class="table table-sm align-middle">
+                <thead class="table-light">
+                  <tr>
+                    <th>Parcela</th>
+                    <th>Vencimento</th>
+                    <th class="text-end">Valor</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for inst in installments %}
+                    <tr>
+                      <td>{{ inst.number }}/{{ group.installments_count }}</td>
+                      <td>{{ inst.due_date|date:"d/m/Y" }}</td>
+                      <td class="text-end">R$ {{ inst.amount }}</td>
+                    </tr>
+                  {% empty %}
+                    <tr>
+                      <td colspan="3" class="text-muted">Nenhuma parcela gerada.</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+{% endblock %}

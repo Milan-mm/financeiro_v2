@@ -36,6 +36,30 @@
       </a>
     </li>
     <li class="nav-item">
+      <a class="nav-link {% if current == 'finance:cards' %}active{% endif %}" href="{% url 'finance:cards' %}">
+        <i class="bi bi-credit-card"></i>
+        <span>Cartões</span>
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if current == 'finance:purchases' %}active{% endif %}" href="{% url 'finance:purchases' %}">
+        <i class="bi bi-receipt-cutoff"></i>
+        <span>Compras</span>
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if current == 'finance:recurring' %}active{% endif %}" href="{% url 'finance:recurring' %}">
+        <i class="bi bi-arrow-repeat"></i>
+        <span>Recorrências</span>
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if current == 'finance:import-start' %}active{% endif %}" href="{% url 'finance:import-start' %}">
+        <i class="bi bi-cloud-upload"></i>
+        <span>Importador</span>
+      </a>
+    </li>
+    <li class="nav-item">
       <a class="nav-link {% if current == 'cards' %}active{% endif %}" href="{% url 'cards' %}">
         <i class="bi bi-credit-card"></i>
         <span>Cartões</span>

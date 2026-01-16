@@ -1,0 +1,23 @@
+{% include "partials/messages.html" %}
+<div class="table-responsive">
+  <table class="table table-sm align-middle">
+    <thead class="table-light">
+      <tr>
+        <th>Descrição</th>
+        <th>Vencimento</th>
+        <th class="text-end">Valor</th>
+        <th>Status</th>
+        <th class="text-end">Ações</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for instance in instances %}
+        {% include "finance/partials/_recurring_instances_row.html" %}
+      {% empty %}
+        <tr>
+          <td colspan="5" class="text-muted">Nenhuma instância no mês.</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

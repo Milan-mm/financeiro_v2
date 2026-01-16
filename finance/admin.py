@@ -1,6 +1,18 @@
 from django.contrib import admin
 
-from .models import Account, Category, LedgerEntry, Receivable
+from .models import (
+    Account,
+    Card,
+    CardPurchaseGroup,
+    Category,
+    ImportBatch,
+    ImportItem,
+    Installment,
+    LedgerEntry,
+    Receivable,
+    RecurringInstance,
+    RecurringRule,
+)
 
 
 @admin.register(Category)
@@ -32,3 +44,47 @@ class ReceivableAdmin(admin.ModelAdmin):
     list_filter = ("household", "status")
     search_fields = ("description",)
     date_hierarchy = "expected_date"
+
+
+@admin.register(Card)
+class CardAdmin(admin.ModelAdmin):
+    list_display = ("name", "household", "is_active")
+    list_filter = ("household", "is_active")
+    search_fields = ("name",)
+
+
+@admin.register(CardPurchaseGroup)
+class CardPurchaseGroupAdmin(admin.ModelAdmin):
+    list_display = ("description", "card", "total_amount", "installments_count", "first_due_date")
+    list_filter = ("card",)
+    search_fields = ("description",)
+
+
+@admin.register(Installment)
+class InstallmentAdmin(admin.ModelAdmin):
+    list_display = ("group", "number", "due_date", "amount")
+    list_filter = ("due_date",)
+
+
+@admin.register(RecurringRule)
+class RecurringRuleAdmin(admin.ModelAdmin):
+    list_display = ("description", "amount", "due_day", "active", "household")
+    list_filter = ("active", "household")
+
+
+@admin.register(RecurringInstance)
+class RecurringInstanceAdmin(admin.ModelAdmin):
+    list_display = ("rule", "year", "month", "due_date", "amount", "is_paid")
+    list_filter = ("is_paid", "year", "month")
+
+
+@admin.register(ImportBatch)
+class ImportBatchAdmin(admin.ModelAdmin):
+    list_display = ("id", "status", "created_at", "household")
+    list_filter = ("status",)
+
+
+@admin.register(ImportItem)
+class ImportItemAdmin(admin.ModelAdmin):
+    list_display = ("batch", "date", "description", "amount", "installments_count", "removed")
+    list_filter = ("removed",)

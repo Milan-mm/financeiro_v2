@@ -23,6 +23,7 @@ def analyze_invoice_text(text_content):
         return []
 
     client = OpenAI(api_key=api_key)
+    model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
     current_year = date.today().year
 
     print(f"--- DEBUG AI: Iniciando análise de texto ({len(text_content)} chars) ---")
@@ -48,7 +49,7 @@ def analyze_invoice_text(text_content):
 
     try:
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model=model,
             messages=[{"role": "user", "content": prompt}],
             temperature=0,
         )

@@ -1,17 +1,51 @@
 from calendar import monthrange
 from datetime import date
+from decimal import Decimal
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import models, transaction
 from django.db.models import Sum
 from django.db.models.functions import Coalesce
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
-from .forms import AccountForm, CategoryForm, LedgerEntryForm, ReceivableForm
-from .models import Account, Category, LedgerEntry, Receivable
+from core.utils_ai import analyze_invoice_text
+from .forms import (
+    AccountForm,
+    CardForm,
+    CardPurchaseGroupForm,
+    CategoryForm,
+    ImportPasteForm,
+    ImportReviewFormSet,
+    LedgerEntryForm,
+    ReceivableForm,
+    RecurringInstanceValueOverrideForm,
+    RecurringRuleForm,
+)
+from .models import (
+    Account,
+    Card,
+    CardPurchaseGroup,
+    Category,
+    ImportBatch,
+    ImportItem,
+    Installment,
+    LedgerEntry,
+    Receivable,
+    RecurringInstance,
+    RecurringRule,
+)
+from .services import (
+    generate_installments_for_group,
+    generate_recurring_instances,
+    installment_plan,
+    pay_recurring_instance,
+    regenerate_future_installments,
+    build_import_items,
+)
 
 import json
 
@@ -39,12 +73,13 @@ def dashboard(request):
         household=request.household,
         date__range=(month_start, month_end),
     )
-    total_income = (
-        entries.filter(kind=LedgerEntry.Kind.INCOME).aggregate(total=Coalesce(Sum("amount"), 0))["total"]
-    )
-    total_expense = (
-        entries.filter(kind=LedgerEntry.Kind.EXPENSE).aggregate(total=Coalesce(Sum("amount"), 0))["total"]
-    )
+    decimal_output = models.DecimalField(max_digits=12, decimal_places=2)
+    total_income = entries.filter(kind=LedgerEntry.Kind.INCOME).aggregate(
+        total=Coalesce(Sum("amount"), Decimal("0.00"), output_field=decimal_output)
+    )["total"]
+    total_expense = entries.filter(kind=LedgerEntry.Kind.EXPENSE).aggregate(
+        total=Coalesce(Sum("amount"), Decimal("0.00"), output_field=decimal_output)
+    )["total"]
     net = total_income - total_expense
 
     receivables_expected = Receivable.objects.filter(
@@ -52,14 +87,18 @@ def dashboard(request):
         status=Receivable.Status.EXPECTED,
         expected_date__range=(month_start, month_end),
     )
-    expected_total = receivables_expected.aggregate(total=Coalesce(Sum("amount"), 0))["total"]
+    expected_total = receivables_expected.aggregate(
+        total=Coalesce(Sum("amount"), Decimal("0.00"), output_field=decimal_output)
+    )["total"]
 
     receivables_received = Receivable.objects.filter(
         household=request.household,
         status=Receivable.Status.RECEIVED,
         received_at__date__range=(month_start, month_end),
     )
-    received_total = receivables_received.aggregate(total=Coalesce(Sum("amount"), 0))["total"]
+    received_total = receivables_received.aggregate(
+        total=Coalesce(Sum("amount"), Decimal("0.00"), output_field=decimal_output)
+    )["total"]
 
     receivables_for_month = Receivable.objects.filter(household=request.household).filter(
         models.Q(expected_date__range=(month_start, month_end))
@@ -67,6 +106,12 @@ def dashboard(request):
     )
 
     entries_for_month = entries.order_by("-date", "-id")
+    recurring_for_month = RecurringInstance.objects.filter(
+        household=request.household, year=year, month=month
+    ).select_related("rule")
+    installments_for_month = Installment.objects.filter(
+        household=request.household, due_date__range=(month_start, month_end)
+    ).select_related("group")
 
     expenses_breakdown = _category_breakdown(entries.filter(kind=LedgerEntry.Kind.EXPENSE), total_expense)
     income_breakdown = _category_breakdown(entries.filter(kind=LedgerEntry.Kind.INCOME), total_income)
@@ -83,6 +128,8 @@ def dashboard(request):
         "month_end": month_end,
         "entries": entries_for_month,
         "receivables": receivables_for_month,
+        "recurring_instances": recurring_for_month,
+        "installments": installments_for_month,
         "total_income": total_income,
         "total_expense": total_expense,
         "net": net,
@@ -128,7 +175,13 @@ def _year_options(current_year):
 def _category_breakdown(queryset, total):
     rows = (
         queryset.values("category__name")
-        .annotate(total=Coalesce(Sum("amount"), 0))
+        .annotate(
+            total=Coalesce(
+                Sum("amount"),
+                Decimal("0.00"),
+                output_field=models.DecimalField(max_digits=12, decimal_places=2),
+            )
+        )
         .order_by("-total")
     )
     results = []
@@ -143,7 +196,13 @@ def _category_breakdown(queryset, total):
 def _daily_cumulative(queryset, month_start):
     days_in_month = monthrange(month_start.year, month_start.month)[1]
     daily = [0] * days_in_month
-    for row in queryset.values("date").annotate(total=Coalesce(Sum("amount"), 0)):
+    for row in queryset.values("date").annotate(
+        total=Coalesce(
+            Sum("amount"),
+            Decimal("0.00"),
+            output_field=models.DecimalField(max_digits=12, decimal_places=2),
+        )
+    ):
         day_index = row["date"].day - 1
         if 0 <= day_index < days_in_month:
             daily[day_index] = float(row["total"])
@@ -546,3 +605,392 @@ def receivable_cancel(request, pk):
         {"receivables": receivables, "status": status},
         trigger={"dashboard:refresh": True},
     )
+
+
+@login_required
+def card_list(request):
+    cards = Card.objects.filter(household=request.household)
+    if _is_htmx(request):
+        return render(request, "finance/partials/_card_table.html", {"cards": cards})
+    return render(request, "finance/cards_list.html", {"cards": cards})
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def card_create(request):
+    if request.method == "POST":
+        form = CardForm(request.POST, household=request.household)
+        if form.is_valid():
+            card = form.save(commit=False)
+            card.household = request.household
+            card.created_by = request.user
+            card.save()
+            messages.success(request, "Cartão criado.")
+            cards = Card.objects.filter(household=request.household)
+            return _render_partial(
+                request,
+                "finance/partials/_card_table.html",
+                {"cards": cards},
+                trigger={"closeModal": True},
+            )
+    else:
+        form = CardForm(household=request.household)
+    return render(request, "finance/partials/_card_form.html", {"form": form})
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def card_edit(request, pk):
+    card = get_object_or_404(Card, pk=pk, household=request.household)
+    if request.method == "POST":
+        form = CardForm(request.POST, instance=card, household=request.household)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Cartão atualizado.")
+            cards = Card.objects.filter(household=request.household)
+            return _render_partial(
+                request,
+                "finance/partials/_card_table.html",
+                {"cards": cards},
+                trigger={"closeModal": True},
+            )
+    else:
+        form = CardForm(instance=card, household=request.household)
+    return render(request, "finance/partials/_card_form.html", {"form": form, "card": card})
+
+
+@login_required
+@require_http_methods(["POST"])
+def card_delete(request, pk):
+    card = get_object_or_404(Card, pk=pk, household=request.household)
+    card.delete()
+    messages.success(request, "Cartão removido.")
+    cards = Card.objects.filter(household=request.household)
+    return _render_partial(request, "finance/partials/_card_table.html", {"cards": cards})
+
+
+@login_required
+def purchase_list(request):
+    groups = CardPurchaseGroup.objects.filter(household=request.household).select_related("card")
+    return render(request, "finance/purchases_list.html", {"groups": groups})
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def purchase_create(request):
+    if request.method == "POST":
+        form = CardPurchaseGroupForm(request.POST, household=request.household)
+        if form.is_valid():
+            group = form.save(commit=False)
+            group.household = request.household
+            group.created_by = request.user
+            group.save()
+            generate_installments_for_group(group)
+            messages.success(request, "Compra parcelada criada.")
+            groups = CardPurchaseGroup.objects.filter(household=request.household)
+            return _render_partial(
+                request,
+                "finance/partials/_purchase_table.html",
+                {"groups": groups},
+                trigger={"closeModal": True, "dashboard:refresh": True},
+            )
+    else:
+        form = CardPurchaseGroupForm(household=request.household)
+    return render(request, "finance/partials/_purchase_form.html", {"form": form})
+
+
+@login_required
+def purchase_detail(request, pk):
+    group = get_object_or_404(CardPurchaseGroup, pk=pk, household=request.household)
+    installments = group.installments.order_by("number")
+    return render(
+        request,
+        "finance/purchase_detail.html",
+        {"group": group, "installments": installments},
+    )
+
+
+@login_required
+@require_http_methods(["POST"])
+def purchase_delete(request, pk):
+    group = get_object_or_404(CardPurchaseGroup, pk=pk, household=request.household)
+    group.delete()
+    messages.success(request, "Compra removida.")
+    groups = CardPurchaseGroup.objects.filter(household=request.household)
+    return _render_partial(
+        request,
+        "finance/partials/_purchase_table.html",
+        {"groups": groups},
+        trigger={"dashboard:refresh": True},
+    )
+
+
+@login_required
+@require_http_methods(["POST"])
+def purchase_regenerate(request, pk):
+    group = get_object_or_404(CardPurchaseGroup, pk=pk, household=request.household)
+    from_date = request.POST.get("from_date")
+    from_date = date.fromisoformat(from_date) if from_date else timezone.localdate()
+    regenerate_future_installments(group, from_date)
+    messages.success(request, "Parcelas futuras recriadas.")
+    return redirect("finance:purchase-detail", pk=group.pk)
+
+
+@login_required
+def recurring_list(request):
+    rules = RecurringRule.objects.filter(household=request.household)
+    return render(request, "finance/recurring_list.html", {"rules": rules})
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def recurring_create(request):
+    months_ahead = int(request.POST.get("months_ahead", 3) or 3)
+    if request.method == "POST":
+        form = RecurringRuleForm(request.POST, household=request.household)
+        if form.is_valid():
+            rule = form.save(commit=False)
+            rule.household = request.household
+            rule.created_by = request.user
+            rule.save()
+            generate_recurring_instances(rule, months_ahead)
+            messages.success(request, "Recorrência criada.")
+            rules = RecurringRule.objects.filter(household=request.household)
+            return _render_partial(
+                request,
+                "finance/partials/_recurring_table.html",
+                {"rules": rules},
+                trigger={"closeModal": True, "dashboard:refresh": True},
+            )
+    else:
+        form = RecurringRuleForm(household=request.household)
+    return render(
+        request,
+        "finance/partials/_recurring_form.html",
+        {"form": form, "months_ahead": months_ahead},
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def recurring_edit(request, pk):
+    rule = get_object_or_404(RecurringRule, pk=pk, household=request.household)
+    if request.method == "POST":
+        form = RecurringRuleForm(request.POST, instance=rule, household=request.household)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Recorrência atualizada.")
+            rules = RecurringRule.objects.filter(household=request.household)
+            return _render_partial(
+                request,
+                "finance/partials/_recurring_table.html",
+                {"rules": rules},
+                trigger={"closeModal": True},
+            )
+    else:
+        form = RecurringRuleForm(instance=rule, household=request.household)
+    return render(request, "finance/partials/_recurring_form.html", {"form": form, "rule": rule})
+
+
+@login_required
+@require_http_methods(["POST"])
+def recurring_delete(request, pk):
+    rule = get_object_or_404(RecurringRule, pk=pk, household=request.household)
+    rule.delete()
+    messages.success(request, "Recorrência removida.")
+    rules = RecurringRule.objects.filter(household=request.household)
+    return _render_partial(request, "finance/partials/_recurring_table.html", {"rules": rules})
+
+
+@login_required
+@require_http_methods(["POST"])
+def recurring_generate(request, pk):
+    rule = get_object_or_404(RecurringRule, pk=pk, household=request.household)
+    months_ahead = int(request.POST.get("months_ahead", 3) or 3)
+    generate_recurring_instances(rule, months_ahead)
+    messages.success(request, "Instâncias geradas.")
+    rules = RecurringRule.objects.filter(household=request.household)
+    return _render_partial(request, "finance/partials/_recurring_table.html", {"rules": rules})
+
+
+@login_required
+def recurring_instances(request):
+    year = int(request.GET.get("year"))
+    month = int(request.GET.get("month"))
+    instances = RecurringInstance.objects.filter(
+        household=request.household, year=year, month=month
+    ).select_related("rule")
+    return render(
+        request,
+        "finance/partials/_recurring_instances_table.html",
+        {"instances": instances, "year": year, "month": month},
+    )
+
+
+@login_required
+@require_http_methods(["POST"])
+def recurring_instance_pay(request, pk):
+    instance = get_object_or_404(RecurringInstance, pk=pk, household=request.household)
+    instance = pay_recurring_instance(instance)
+    messages.success(request, "Recorrência paga.")
+    return _render_partial(
+        request,
+        "finance/partials/_recurring_instances_row.html",
+        {"instance": instance},
+        trigger={"dashboard:refresh": True},
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def recurring_instance_value(request, pk):
+    instance = get_object_or_404(RecurringInstance, pk=pk, household=request.household)
+    if instance.is_paid:
+        messages.error(request, "Não é possível alterar uma recorrência já paga.")
+        return _render_partial(
+            request,
+            "finance/partials/_recurring_instances_row.html",
+            {"instance": instance},
+        )
+    if request.method == "POST":
+        form = RecurringInstanceValueOverrideForm(request.POST, instance=instance)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Valor atualizado.")
+            return _render_partial(
+                request,
+                "finance/partials/_recurring_instances_row.html",
+                {"instance": instance},
+                trigger={"closeModal": True, "dashboard:refresh": True},
+            )
+    else:
+        form = RecurringInstanceValueOverrideForm(instance=instance)
+    return render(
+        request,
+        "finance/partials/_recurring_instance_value_form.html",
+        {"form": form, "instance": instance},
+    )
+
+
+@login_required
+def import_start(request):
+    form = ImportPasteForm(household=request.household)
+    return render(request, "finance/import_start.html", {"form": form})
+
+
+@login_required
+@require_http_methods(["POST"])
+def import_parse(request):
+    form = ImportPasteForm(request.POST, household=request.household)
+    if not form.is_valid():
+        return render(request, "finance/import_start.html", {"form": form})
+    source_text = form.cleaned_data["source_text"]
+    raw = analyze_invoice_text(source_text)
+    if not raw:
+        messages.error(request, "Não foi possível analisar o texto da fatura.")
+        return render(request, "finance/import_start.html", {"form": form})
+
+    batch = ImportBatch.objects.create(
+        household=request.household,
+        created_by=request.user,
+        source_text=source_text,
+        card=form.cleaned_data.get("card"),
+    )
+    items_payload = []
+    for item in raw:
+        try:
+            items_payload.append(
+                {
+                    "date": date.fromisoformat(item["data"]),
+                    "description": item.get("descricao") or item.get("description"),
+                    "amount": Decimal(str(item.get("valor") or item.get("amount"))),
+                    "installments_count": int(item.get("parcelas") or item.get("installments_count") or 1),
+                    "purchase_type_raw": item.get("tipo_compra") or item.get("purchase_type_raw", ""),
+                }
+            )
+        except Exception:
+            continue
+    if not items_payload:
+        messages.error(request, "Nenhum item válido encontrado.")
+        return render(request, "finance/import_start.html", {"form": form})
+
+    build_import_items(batch, items_payload)
+    response = render(request, "finance/import_review.html", {"batch": batch})
+    response["HX-Redirect"] = reverse("finance:import-review", args=[batch.pk])
+    return response
+
+
+@login_required
+def import_review(request, pk):
+    batch = get_object_or_404(ImportBatch, pk=pk, household=request.household)
+    formset = ImportReviewFormSet(queryset=batch.items.all(), form_kwargs={"household": request.household})
+    card_form = ImportPasteForm(household=request.household, initial={"card": batch.card})
+    return render(
+        request,
+        "finance/import_review.html",
+        {"batch": batch, "formset": formset, "card_form": card_form},
+    )
+
+
+@login_required
+@require_http_methods(["POST"])
+def import_confirm(request, pk):
+    batch = get_object_or_404(ImportBatch, pk=pk, household=request.household)
+    if batch.status == ImportBatch.Status.CONFIRMED:
+        messages.info(request, "Importação já confirmada.")
+        return redirect("dashboard")
+
+    formset = ImportReviewFormSet(
+        request.POST, queryset=batch.items.all(), form_kwargs={"household": request.household}
+    )
+    card_id = request.POST.get("card")
+    if card_id:
+        batch.card = Card.objects.filter(household=request.household, id=card_id).first()
+        batch.save(update_fields=["card"])
+
+    if not formset.is_valid():
+        messages.error(request, "Corrija os itens antes de confirmar.")
+        return render(request, "finance/import_review.html", {"batch": batch, "formset": formset})
+
+    with transaction.atomic():
+        for form in formset:
+            item = form.save(commit=False)
+            item.batch = batch
+            item.save()
+            if item.removed:
+                continue
+            if item.installments_count > 1:
+                if batch.card is None:
+                    messages.error(request, "Selecione um cartão para compras parceladas.")
+                    return render(
+                        request,
+                        "finance/import_review.html",
+                        {"batch": batch, "formset": formset},
+                    )
+                group = CardPurchaseGroup.objects.create(
+                    household=request.household,
+                    card=batch.card,
+                    description=item.description,
+                    total_amount=item.amount,
+                    installments_count=item.installments_count,
+                    first_due_date=item.date,
+                    category=item.category,
+                    created_by=request.user,
+                )
+                generate_installments_for_group(group)
+            else:
+                LedgerEntry.objects.create(
+                    household=request.household,
+                    date=item.date,
+                    kind=LedgerEntry.Kind.EXPENSE,
+                    amount=item.amount,
+                    description=item.description,
+                    category=item.category,
+                    created_by=request.user,
+                )
+        batch.status = ImportBatch.Status.CONFIRMED
+        batch.confirmed_at = timezone.now()
+        batch.save(update_fields=["status", "confirmed_at"])
+
+    messages.success(request, "Importação confirmada.")
+    return redirect("dashboard")

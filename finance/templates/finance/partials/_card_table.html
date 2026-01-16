@@ -1,0 +1,21 @@
+{% include "partials/messages.html" %}
+<div class="table-responsive">
+  <table class="table table-sm align-middle">
+    <thead class="table-light">
+      <tr>
+        <th>Nome</th>
+        <th>Status</th>
+        <th class="text-end">Ações</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for card in cards %}
+        {% include "finance/partials/_card_row.html" %}
+      {% empty %}
+        <tr>
+          <td colspan="3" class="text-muted">Nenhum cartão cadastrado.</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

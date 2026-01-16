@@ -1,0 +1,69 @@
+<form
+  method="post"
+  hx-post="{% if rule %}{% url 'finance:recurring-edit' rule.id %}{% else %}{% url 'finance:recurring-create' %}{% endif %}"
+  hx-target="#recurring-table"
+  hx-swap="innerHTML"
+>
+  {% csrf_token %}
+  <div class="p-4">
+    <h2 class="h5 fw-semibold mb-3">{% if rule %}Editar recorrência{% else %}Nova recorrência{% endif %}</h2>
+    <div class="mb-3">
+      {{ form.description.label_tag }}
+      {{ form.description }}
+      {% for error in form.description.errors %}
+        <div class="text-danger small">{{ error }}</div>
+      {% endfor %}
+    </div>
+    <div class="mb-3">
+      {{ form.amount.label_tag }}
+      {{ form.amount }}
+      {% for error in form.amount.errors %}
+        <div class="text-danger small">{{ error }}</div>
+      {% endfor %}
+    </div>
+    <div class="mb-3">
+      {{ form.due_day.label_tag }}
+      {{ form.due_day }}
+      {% for error in form.due_day.errors %}
+        <div class="text-danger small">{{ error }}</div>
+      {% endfor %}
+    </div>
+    <div class="mb-3">
+      {{ form.start_date.label_tag }}
+      {{ form.start_date }}
+      {% for error in form.start_date.errors %}
+        <div class="text-danger small">{{ error }}</div>
+      {% endfor %}
+    </div>
+    <div class="mb-3">
+      {{ form.end_date.label_tag }}
+      {{ form.end_date }}
+      {% for error in form.end_date.errors %}
+        <div class="text-danger small">{{ error }}</div>
+      {% endfor %}
+    </div>
+    <div class="mb-3">
+      {{ form.category.label_tag }}
+      {{ form.category }}
+    </div>
+    <div class="mb-3">
+      {{ form.account.label_tag }}
+      {{ form.account }}
+    </div>
+    <div class="form-check form-switch mb-4">
+      {{ form.active }}
+      {{ form.active.label_tag }}
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Meses a gerar</label>
+      <input type="number" name="months_ahead" class="form-control" value="{{ months_ahead|default:3 }}" min="1" max="24" />
+    </div>
+    {% if form.non_field_errors %}
+      <div class="text-danger small mb-3">{{ form.non_field_errors }}</div>
+    {% endif %}
+  </div>
+  <div class="border-top p-3 d-flex justify-content-end gap-2">
+    <button type="button" class="btn btn-light" onclick="document.getElementById('modal-root').close();">Cancelar</button>
+    <button type="submit" class="btn btn-primary">Salvar</button>
+  </div>
+</form>

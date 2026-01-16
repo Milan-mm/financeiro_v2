@@ -1,0 +1,21 @@
+<tr>
+  <td>
+    <a href="{% url 'finance:purchase-detail' group.id %}" class="text-decoration-none">{{ group.description }}</a>
+  </td>
+  <td>{{ group.card.name }}</td>
+  <td>{{ group.installments_count }}</td>
+  <td>{{ group.first_due_date|date:"d/m/Y" }}</td>
+  <td class="text-end">R$ {{ group.total_amount }}</td>
+  <td class="text-end">
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'finance:purchase-detail' group.id %}">Ver parcelas</a>
+    <button
+      class="btn btn-outline-danger btn-sm"
+      hx-post="{% url 'finance:purchase-delete' group.id %}"
+      hx-target="#purchase-table"
+      hx-swap="innerHTML"
+      hx-confirm="Remover esta compra?"
+    >
+      Excluir
+    </button>
+  </td>
+</tr>

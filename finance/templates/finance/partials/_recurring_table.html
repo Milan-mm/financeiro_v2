@@ -1,0 +1,23 @@
+{% include "partials/messages.html" %}
+<div class="table-responsive">
+  <table class="table table-sm align-middle">
+    <thead class="table-light">
+      <tr>
+        <th>Descrição</th>
+        <th>Dia</th>
+        <th>Valor</th>
+        <th>Status</th>
+        <th class="text-end">Ações</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for rule in rules %}
+        {% include "finance/partials/_recurring_row.html" %}
+      {% empty %}
+        <tr>
+          <td colspan="5" class="text-muted">Nenhuma recorrência cadastrada.</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

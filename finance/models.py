@@ -159,3 +159,206 @@ class Receivable(models.Model):
 
     def __str__(self):
         return f"{self.description} ({self.status})"
+
+
+class Card(models.Model):
+    household = models.ForeignKey(Household, on_delete=models.CASCADE, related_name="cards")
+    name = models.CharField(max_length=120)
+    is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="finance_cards_created",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["name"]
+        constraints = [
+            models.UniqueConstraint(fields=["household", "name"], name="unique_card_household")
+        ]
+
+    def __str__(self):
+        return self.name
+
+
+class CardPurchaseGroup(models.Model):
+    household = models.ForeignKey(Household, on_delete=models.CASCADE, related_name="purchase_groups")
+    card = models.ForeignKey(Card, on_delete=models.CASCADE, related_name="purchase_groups")
+    description = models.CharField(max_length=255)
+    total_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    installments_count = models.PositiveIntegerField(default=1)
+    first_due_date = models.DateField()
+    category = models.ForeignKey(
+        Category,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="purchase_groups",
+    )
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="finance_purchase_groups_created",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-first_due_date", "-id"]
+
+    def __str__(self):
+        return self.description
+
+
+class Installment(models.Model):
+    household = models.ForeignKey(Household, on_delete=models.CASCADE, related_name="installments")
+    group = models.ForeignKey(CardPurchaseGroup, on_delete=models.CASCADE, related_name="installments")
+    number = models.PositiveIntegerField()
+    due_date = models.DateField()
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    ledger_entry = models.ForeignKey(
+        LedgerEntry,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="installments",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["due_date", "number"]
+        constraints = [
+            models.UniqueConstraint(fields=["group", "number"], name="unique_installment_group_number")
+        ]
+
+    def __str__(self):
+        return f"{self.group} {self.number}/{self.group.installments_count}"
+
+
+class RecurringRule(models.Model):
+    household = models.ForeignKey(Household, on_delete=models.CASCADE, related_name="recurring_rules")
+    description = models.CharField(max_length=255)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    due_day = models.PositiveIntegerField()
+    start_date = models.DateField()
+    end_date = models.DateField(null=True, blank=True)
+    active = models.BooleanField(default=True)
+    category = models.ForeignKey(
+        Category,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="recurring_rules",
+    )
+    account = models.ForeignKey(
+        Account,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="recurring_rules",
+    )
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="finance_recurring_rules_created",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["description"]
+
+    def __str__(self):
+        return self.description
+
+
+class RecurringInstance(models.Model):
+    household = models.ForeignKey(Household, on_delete=models.CASCADE, related_name="recurring_instances")
+    rule = models.ForeignKey(RecurringRule, on_delete=models.CASCADE, related_name="instances")
+    year = models.PositiveIntegerField()
+    month = models.PositiveIntegerField()
+    due_date = models.DateField()
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    is_paid = models.BooleanField(default=False)
+    paid_at = models.DateTimeField(null=True, blank=True)
+    ledger_entry = models.ForeignKey(
+        LedgerEntry,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="recurring_instances",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["year", "month", "due_date"]
+        constraints = [
+            models.UniqueConstraint(fields=["rule", "year", "month"], name="unique_recurring_rule_month")
+        ]
+
+    def __str__(self):
+        return f"{self.rule} {self.month}/{self.year}"
+
+
+class ImportBatch(models.Model):
+    class Status(models.TextChoices):
+        DRAFT = "DRAFT", "Draft"
+        CONFIRMED = "CONFIRMED", "Confirmed"
+        CANCELED = "CANCELED", "Canceled"
+
+    household = models.ForeignKey(Household, on_delete=models.CASCADE, related_name="import_batches")
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="finance_import_batches_created",
+    )
+    card = models.ForeignKey(
+        Card,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="import_batches",
+    )
+    source_text = models.TextField()
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.DRAFT)
+    created_at = models.DateTimeField(auto_now_add=True)
+    confirmed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Batch {self.id} ({self.status})"
+
+
+class ImportItem(models.Model):
+    batch = models.ForeignKey(ImportBatch, on_delete=models.CASCADE, related_name="items")
+    date = models.DateField()
+    description = models.CharField(max_length=255)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    installments_count = models.PositiveIntegerField(default=1)
+    purchase_type_raw = models.CharField(max_length=120, blank=True)
+    category = models.ForeignKey(
+        Category,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="import_items",
+    )
+    removed = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["id"]
+
+    def __str__(self):
+        return self.description

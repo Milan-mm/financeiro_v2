@@ -1,0 +1,29 @@
+<tr>
+  <td>{{ card.name }}</td>
+  <td>
+    {% if card.is_active %}
+      <span class="badge text-bg-success">Ativo</span>
+    {% else %}
+      <span class="badge text-bg-secondary">Inativo</span>
+    {% endif %}
+  </td>
+  <td class="text-end">
+    <button
+      class="btn btn-outline-secondary btn-sm"
+      hx-get="{% url 'finance:card-edit' card.id %}"
+      hx-target="#modal-root"
+      hx-swap="innerHTML"
+    >
+      Editar
+    </button>
+    <button
+      class="btn btn-outline-danger btn-sm"
+      hx-post="{% url 'finance:card-delete' card.id %}"
+      hx-target="#card-table"
+      hx-swap="innerHTML"
+      hx-confirm="Remover este cartão?"
+    >
+      Excluir
+    </button>
+  </td>
+</tr>

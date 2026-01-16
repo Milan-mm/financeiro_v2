@@ -1,6 +1,18 @@
 from django import forms
 
-from .models import Account, Category, LedgerEntry, Receivable
+from django.forms import modelformset_factory
+
+from .models import (
+    Account,
+    Card,
+    CardPurchaseGroup,
+    Category,
+    ImportItem,
+    LedgerEntry,
+    Receivable,
+    RecurringInstance,
+    RecurringRule,
+)
 
 
 class HouseholdScopedForm(forms.ModelForm):
@@ -121,3 +133,139 @@ class ReceivableForm(HouseholdScopedForm):
         if amount is not None and amount <= 0:
             raise forms.ValidationError("Informe um valor maior que zero.")
         return amount
+
+
+class CardForm(HouseholdScopedForm):
+    class Meta:
+        model = Card
+        fields = ["name", "is_active"]
+        labels = {
+            "name": "Nome",
+            "is_active": "Ativo",
+        }
+
+
+class CardPurchaseGroupForm(HouseholdScopedForm):
+    class Meta:
+        model = CardPurchaseGroup
+        fields = [
+            "card",
+            "description",
+            "total_amount",
+            "installments_count",
+            "first_due_date",
+            "category",
+        ]
+        labels = {
+            "card": "Cartão",
+            "description": "Descrição",
+            "total_amount": "Valor total",
+            "installments_count": "Parcelas",
+            "first_due_date": "Primeiro vencimento",
+            "category": "Categoria",
+        }
+        widgets = {
+            "first_due_date": forms.DateInput(attrs={"type": "date"}),
+        }
+
+    def __init__(self, *args, household=None, **kwargs):
+        super().__init__(*args, household=household, **kwargs)
+        self.fields["card"].queryset = Card.objects.filter(household=household, is_active=True)
+
+    def clean_total_amount(self):
+        amount = self.cleaned_data.get("total_amount")
+        if amount is not None and amount <= 0:
+            raise forms.ValidationError("Informe um valor maior que zero.")
+        return amount
+
+
+class RecurringRuleForm(HouseholdScopedForm):
+    class Meta:
+        model = RecurringRule
+        fields = [
+            "description",
+            "amount",
+            "due_day",
+            "start_date",
+            "end_date",
+            "active",
+            "category",
+            "account",
+        ]
+        labels = {
+            "description": "Descrição",
+            "amount": "Valor",
+            "due_day": "Dia de vencimento",
+            "start_date": "Início",
+            "end_date": "Fim",
+            "active": "Ativo",
+            "category": "Categoria",
+            "account": "Conta",
+        }
+        widgets = {
+            "start_date": forms.DateInput(attrs={"type": "date"}),
+            "end_date": forms.DateInput(attrs={"type": "date"}),
+        }
+
+    def clean_amount(self):
+        amount = self.cleaned_data.get("amount")
+        if amount is not None and amount <= 0:
+            raise forms.ValidationError("Informe um valor maior que zero.")
+        return amount
+
+
+class RecurringInstanceValueOverrideForm(HouseholdScopedForm):
+    class Meta:
+        model = RecurringInstance
+        fields = ["amount"]
+        labels = {"amount": "Valor"}
+
+    def clean_amount(self):
+        amount = self.cleaned_data.get("amount")
+        if amount is not None and amount <= 0:
+            raise forms.ValidationError("Informe um valor maior que zero.")
+        return amount
+
+
+class ImportPasteForm(forms.Form):
+    card = forms.ModelChoiceField(queryset=Card.objects.none(), required=False, label="Cartão")
+    months_ahead = forms.IntegerField(min_value=1, max_value=24, required=False, initial=3, label="Meses")
+    source_text = forms.CharField(widget=forms.Textarea(attrs={"rows": 6}), label="Texto da fatura")
+
+    def __init__(self, *args, household=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["card"].queryset = Card.objects.filter(household=household, is_active=True)
+        self.fields["card"].widget.attrs.setdefault("class", "form-select")
+        self.fields["months_ahead"].widget.attrs.setdefault("class", "form-control")
+        self.fields["source_text"].widget.attrs.setdefault("class", "form-control")
+
+
+class ImportItemForm(forms.ModelForm):
+    class Meta:
+        model = ImportItem
+        fields = [
+            "date",
+            "description",
+            "amount",
+            "installments_count",
+            "category",
+            "removed",
+        ]
+        widgets = {
+            "date": forms.DateInput(attrs={"type": "date"}),
+        }
+
+    def __init__(self, *args, household=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if household is not None:
+            self.fields["category"].queryset = Category.objects.filter(
+                household=household, is_active=True
+            )
+
+
+ImportReviewFormSet = modelformset_factory(
+    ImportItem,
+    form=ImportItemForm,
+    extra=0,
+    can_delete=False,
+)

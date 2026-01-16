@@ -1,0 +1,24 @@
+{% include "partials/messages.html" %}
+<div class="table-responsive">
+  <table class="table table-sm align-middle">
+    <thead class="table-light">
+      <tr>
+        <th>Descrição</th>
+        <th>Cartão</th>
+        <th>Parcelas</th>
+        <th>Primeiro vencimento</th>
+        <th class="text-end">Valor total</th>
+        <th class="text-end">Ações</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for group in groups %}
+        {% include "finance/partials/_purchase_row.html" %}
+      {% empty %}
+        <tr>
+          <td colspan="6" class="text-muted">Nenhuma compra cadastrada.</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

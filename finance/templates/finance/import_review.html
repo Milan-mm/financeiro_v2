@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}Revisar importação{% endblock %}
+
+{% block content %}
+  <div class="dashboard-layout">
+    {% include "partials/nav.html" %}
+
+    <main class="main-content">
+      <div class="container-xxl py-4">
+        <header class="mb-4">
+          <p class="text-uppercase text-muted fw-semibold small mb-1">Importador</p>
+          <h1 class="h3 fw-bold mb-1">Revisar itens</h1>
+          <p class="text-muted mb-0">Revise os itens antes de confirmar.</p>
+        </header>
+
+        <section class="card border-0 shadow-sm">
+          <div class="card-body">
+            <form method="post" action="{% url 'finance:import-confirm' batch.id %}">
+              {% csrf_token %}
+              <div class="mb-3">
+                <label class="form-label">Cartão (para parcelas)</label>
+                {{ card_form.card }}
+              </div>
+
+              {{ formset.management_form }}
+              <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Data</th>
+                      <th>Descrição</th>
+                      <th>Valor</th>
+                      <th>Parcelas</th>
+                      <th>Categoria</th>
+                      <th>Remover</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for form in formset %}
+                      <tr>
+                        <td>{{ form.date }}</td>
+                        <td>{{ form.description }}</td>
+                        <td>{{ form.amount }}</td>
+                        <td>{{ form.installments_count }}</td>
+                        <td>{{ form.category }}</td>
+                        <td>{{ form.removed }}</td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+
+              <button type="submit" class="btn btn-primary">Confirmar importação</button>
+            </form>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+{% endblock %}

@@ -1,0 +1,29 @@
+<form
+  method="post"
+  hx-post="{% if card %}{% url 'finance:card-edit' card.id %}{% else %}{% url 'finance:card-create' %}{% endif %}"
+  hx-target="#card-table"
+  hx-swap="innerHTML"
+>
+  {% csrf_token %}
+  <div class="p-4">
+    <h2 class="h5 fw-semibold mb-3">{% if card %}Editar cartão{% else %}Novo cartão{% endif %}</h2>
+    <div class="mb-3">
+      {{ form.name.label_tag }}
+      {{ form.name }}
+      {% for error in form.name.errors %}
+        <div class="text-danger small">{{ error }}</div>
+      {% endfor %}
+    </div>
+    <div class="form-check form-switch mb-4">
+      {{ form.is_active }}
+      {{ form.is_active.label_tag }}
+    </div>
+    {% if form.non_field_errors %}
+      <div class="text-danger small mb-3">{{ form.non_field_errors }}</div>
+    {% endif %}
+  </div>
+  <div class="border-top p-3 d-flex justify-content-end gap-2">
+    <button type="button" class="btn btn-light" onclick="document.getElementById('modal-root').close();">Cancelar</button>
+    <button type="submit" class="btn btn-primary">Salvar</button>
+  </div>
+</form>

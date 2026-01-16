@@ -190,6 +190,50 @@
   </div>
 </section>
 
+<section class="row g-3 mt-4">
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <h3 class="h6 fw-semibold">Recorrências do mês</h3>
+        {% include "finance/partials/_recurring_instances_table.html" with instances=recurring_instances year=year month=month %}
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <h3 class="h6 fw-semibold">Parcelas do mês</h3>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>Compra</th>
+                <th>Parcela</th>
+                <th>Vencimento</th>
+                <th class="text-end">Valor</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for installment in installments %}
+                <tr>
+                  <td>{{ installment.group.description }}</td>
+                  <td>{{ installment.number }}/{{ installment.group.installments_count }}</td>
+                  <td>{{ installment.due_date|date:"d/m/Y" }}</td>
+                  <td class="text-end">R$ {{ installment.amount }}</td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="4" class="text-muted">Nenhuma parcela no mês.</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
 {{ line_chart|json_script:"line-chart-data" }}
 {{ expense_chart|json_script:"expense-chart-data" }}
 {{ income_chart|json_script:"income-chart-data" }}

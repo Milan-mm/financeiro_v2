@@ -1,0 +1,39 @@
+<tr>
+  <td>{{ rule.description }}</td>
+  <td>{{ rule.due_day }}</td>
+  <td>R$ {{ rule.amount }}</td>
+  <td>
+    {% if rule.active %}
+      <span class="badge text-bg-success">Ativa</span>
+    {% else %}
+      <span class="badge text-bg-secondary">Inativa</span>
+    {% endif %}
+  </td>
+  <td class="text-end">
+    <button
+      class="btn btn-outline-secondary btn-sm"
+      hx-get="{% url 'finance:recurring-edit' rule.id %}"
+      hx-target="#modal-root"
+      hx-swap="innerHTML"
+    >
+      Editar
+    </button>
+    <button
+      class="btn btn-outline-primary btn-sm"
+      hx-post="{% url 'finance:recurring-generate' rule.id %}"
+      hx-target="#recurring-table"
+      hx-swap="innerHTML"
+    >
+      Gerar instâncias
+    </button>
+    <button
+      class="btn btn-outline-danger btn-sm"
+      hx-post="{% url 'finance:recurring-delete' rule.id %}"
+      hx-target="#recurring-table"
+      hx-swap="innerHTML"
+      hx-confirm="Remover esta regra?"
+    >
+      Excluir
+    </button>
+  </td>
+</tr>
