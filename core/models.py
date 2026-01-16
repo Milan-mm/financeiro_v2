@@ -3,6 +3,30 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 
+class Household(models.Model):
+    name = models.CharField(max_length=120)
+    slug = models.SlugField(max_length=140, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name
+
+
+class HouseholdMembership(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    household = models.ForeignKey(Household, on_delete=models.CASCADE)
+    is_primary = models.BooleanField(default=False)
+    joined_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["user", "household"], name="unique_household_membership")
+        ]
+
+    def __str__(self):
+        return f"{self.user} -> {self.household}"
+
+
 class Card(models.Model):
     nome = models.CharField(max_length=100)
     ativo = models.BooleanField(default=True)

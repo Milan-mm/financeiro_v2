@@ -33,6 +33,11 @@ def login_view(request):
 
 
 @login_required
+def household_missing_view(request):
+    return render(request, "core/household_missing.html")
+
+
+@login_required
 def logout_view(request):
     logout(request)
     return redirect("login")

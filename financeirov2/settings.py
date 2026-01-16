@@ -102,6 +102,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'core.middleware.HouseholdMiddleware',
     'core.middleware.SystemLogMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -128,6 +129,7 @@ TEMPLATES = [
 WSGI_APPLICATION = 'financeirov2.wsgi.application'
 
 LOGIN_URL = "login"
+LOGIN_REDIRECT_URL = "dashboard"
 
 # ==============================================================================
 # 5. ARQUIVOS ESTÁTICOS (CSS/JS)

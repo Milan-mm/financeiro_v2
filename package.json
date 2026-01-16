@@ -1,0 +1,11 @@
+{
+  "name": "financeiro-v2",
+  "private": true,
+  "devDependencies": {
+    "tailwindcss": "^3.4.17"
+  },
+  "scripts": {
+    "build:css": "tailwindcss -i ./static/src/tailwind.css -o ./static/css/tailwind.css",
+    "watch:css": "tailwindcss -i ./static/src/tailwind.css -o ./static/css/tailwind.css --watch"
+  }
+}

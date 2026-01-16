@@ -1,69 +1,13 @@
+{% extends "base.html" %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="pt-br">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Dashboard Financeiro</title>
-    <link
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
-      rel="stylesheet"
-      integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
-      crossorigin="anonymous"
-    />
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"
-    />
-    <link rel="stylesheet" href="{% static 'core/styles.css' %}" />
-  </head>
-  <body class="page bg-soft" data-month="{{ month_start|date:'m' }}" data-year="{{ month_start|date:'Y' }}">
+
+{% block title %}Dashboard Financeiro{% endblock %}
+{% block body_class %}page bg-soft{% endblock %}
+{% block body_attrs %}data-month="{{ month_start|date:'m' }}" data-year="{{ month_start|date:'Y' }}"{% endblock %}
+
+{% block content %}
     <div class="dashboard-layout">
-      <nav class="sidebar">
-        <div class="sidebar-brand">
-          <i class="bi bi-graph-up-arrow"></i>
-          <span>Financeiro</span>
-        </div>
-        <ul class="nav flex-column">
-          <li class="nav-item">
-            <a class="nav-link active" href="{% url 'dashboard' %}">
-              <i class="bi bi-house"></i>
-              <span>Home</span>
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="{% url 'cards' %}">
-              <i class="bi bi-credit-card"></i>
-              <span>Cartões</span>
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="{% url 'expenses' %}">
-              <i class="bi bi-receipt"></i>
-              <span>Lançar contas</span>
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="{% url 'settings' %}">
-              <i class="bi bi-gear"></i>
-              <span>Configurações</span>
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="{% url 'system-logs' %}">
-              <i class="bi bi-bug"></i>
-              <span>Logs do Sistema</span>
-              <span class="badge rounded-pill bg-danger ms-auto logs-pending-badge d-none">0</span>
-            </a>
-          </li>
-          <li class="nav-item mt-auto">
-            <a class="nav-link text-danger" href="{% url 'logout' %}">
-              <i class="bi bi-box-arrow-right"></i>
-              <span>Sair</span>
-            </a>
-          </li>
-        </ul>
-      </nav>
+      {% include "partials/nav.html" %}
 
       <main class="main-content">
         <header class="mobile-header d-flex d-md-none align-items-center justify-content-between px-3">
@@ -376,13 +320,9 @@
 
     {% include "core/partials/_modals.html" %}
     {% include "core/partials/_toasts.html" %}
+{% endblock %}
 
-    <script
-      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
-      integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
-      crossorigin="anonymous"
-    ></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="{% static 'core/app.js' %}"></script>
-  </body>
-</html>
+{% block extra_scripts %}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="{% static 'core/app.js' %}"></script>
+{% endblock %}

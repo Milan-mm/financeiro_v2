@@ -1,6 +1,13 @@
 from django.contrib import admin
 
-from .models import Card, CardPurchase, Category, RecurringExpense
+from .models import (
+    Card,
+    CardPurchase,
+    Category,
+    Household,
+    HouseholdMembership,
+    RecurringExpense,
+)
 
 
 @admin.register(Card)
@@ -25,3 +32,16 @@ class RecurringExpenseAdmin(admin.ModelAdmin):
 class CategoryAdmin(admin.ModelAdmin):
     list_display = ("nome", "cor", "user")
     list_filter = ("user",)
+
+
+@admin.register(Household)
+class HouseholdAdmin(admin.ModelAdmin):
+    list_display = ("name", "slug", "created_at")
+    search_fields = ("name", "slug")
+
+
+@admin.register(HouseholdMembership)
+class HouseholdMembershipAdmin(admin.ModelAdmin):
+    list_display = ("user", "household", "is_primary", "joined_at")
+    list_filter = ("is_primary", "household")
+    search_fields = ("user__username", "household__name")
