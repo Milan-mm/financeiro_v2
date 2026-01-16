@@ -1,5 +1,7 @@
 <tr>
   <td>{{ card.name }}</td>
+  <td>Dia {{ card.closing_day }}</td>
+  <td>Dia {{ card.due_day }}</td>
   <td>
     {% if card.is_active %}
       <span class="badge text-bg-success">Ativo</span>
@@ -16,6 +18,9 @@
     >
       Editar
     </button>
+    <a class="btn btn-outline-primary btn-sm" href="{% url 'finance:card-statement' card.id today.year today.month %}">
+      Fatura
+    </a>
     <button
       class="btn btn-outline-danger btn-sm"
       hx-post="{% url 'finance:card-delete' card.id %}"

@@ -42,3 +42,9 @@ python manage.py runserver
 ## Notes
 - Tailwind output is generated at `static/css/tailwind.css`.
 - HTMX is loaded in the base template for partial updates.
+
+## Statement attribution rule (credit card)
+When importing or attributing credit card purchases to a statement, the system follows:
+- **Year inference:** for each `DD/MM` purchase line, if `line_month > statement_month` then `inferred_year = statement_year - 1`; otherwise `inferred_year = statement_year`. This keeps statement-month context even when the purchase date is from a prior year.
+- **Ledger date:** card statement charges are recorded with `ledger_date = closing_date` of the statement month. This ensures the charge appears in the statement month (closing month), regardless of the original purchase date.
+- **Installments:** when a line includes `current/total` (e.g. `09/12`), the import generates installments starting at the current number through the total, and the first generated installment is attributed to the selected statement month.

@@ -9,6 +9,11 @@ urlpatterns = [
     path("cards/new/", views.card_create, name="card-create"),
     path("cards/<int:pk>/edit/", views.card_edit, name="card-edit"),
     path("cards/<int:pk>/delete/", views.card_delete, name="card-delete"),
+    path(
+        "cards/<int:pk>/statements/<int:year>/<int:month>/",
+        views.card_statement,
+        name="card-statement",
+    ),
     path("purchases/", views.purchase_list, name="purchases"),
     path("purchases/new/", views.purchase_create, name="purchase-create"),
     path("purchases/<int:pk>/", views.purchase_detail, name="purchase-detail"),

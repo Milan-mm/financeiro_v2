@@ -12,7 +12,8 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
-from core.utils_ai import analyze_invoice_text
+from .billing import get_due_date, get_statement_window
+from .statement_importer import parse_statement_text
 from .forms import (
     AccountForm,
     CardForm,
@@ -44,6 +45,7 @@ from .models import (
 )
 from .services import (
     generate_installments_for_group,
+    generate_installments_from_statement,
     generate_recurring_instances,
     installment_plan,
     pay_recurring_instance,
@@ -621,8 +623,16 @@ def receivable_cancel(request, pk):
 def card_list(request):
     cards = Card.objects.filter(household=request.household)
     if _is_htmx(request):
-        return render(request, "finance/partials/_card_table.html", {"cards": cards})
-    return render(request, "finance/cards_list.html", {"cards": cards})
+        return render(
+            request,
+            "finance/partials/_card_table.html",
+            {"cards": cards, "today": timezone.localdate()},
+        )
+    return render(
+        request,
+        "finance/cards_list.html",
+        {"cards": cards, "today": timezone.localdate()},
+    )
 
 
 @login_required
@@ -640,7 +650,7 @@ def card_create(request):
             return _render_partial(
                 request,
                 "finance/partials/_card_table.html",
-                {"cards": cards},
+                {"cards": cards, "today": timezone.localdate()},
                 trigger={"closeModal": True},
             )
     else:
@@ -661,7 +671,7 @@ def card_edit(request, pk):
             return _render_partial(
                 request,
                 "finance/partials/_card_table.html",
-                {"cards": cards},
+                {"cards": cards, "today": timezone.localdate()},
                 trigger={"closeModal": True},
             )
     else:
@@ -676,7 +686,55 @@ def card_delete(request, pk):
     card.delete()
     messages.success(request, "Cartão removido.")
     cards = Card.objects.filter(household=request.household)
-    return _render_partial(request, "finance/partials/_card_table.html", {"cards": cards})
+    return _render_partial(
+        request,
+        "finance/partials/_card_table.html",
+        {"cards": cards, "today": timezone.localdate()},
+    )
+
+
+@login_required
+def card_statement(request, pk, year, month):
+    card = get_object_or_404(Card, pk=pk, household=request.household)
+    if "year" in request.GET or "month" in request.GET:
+        redirect_year = int(request.GET.get("year", year))
+        redirect_month = int(request.GET.get("month", month))
+        return redirect("finance:card-statement", pk=card.pk, year=redirect_year, month=redirect_month)
+    closing_date, period_start, period_end = get_statement_window(year, month, card.closing_day)
+    due_date = get_due_date(year, month, card.due_day)
+    month_label = _month_names()[month - 1]
+    installments = Installment.objects.filter(
+        household=request.household,
+        group__card=card,
+    ).filter(
+        models.Q(statement_year=year, statement_month=month)
+        | models.Q(statement_year__isnull=True, due_date__year=year, due_date__month=month)
+    ).select_related("group")
+    decimal_output = models.DecimalField(max_digits=12, decimal_places=2)
+    total = installments.aggregate(
+        total=Coalesce(Sum("amount"), Decimal("0.00"), output_field=decimal_output)
+    )["total"]
+    by_category = (
+        installments.values("group__category__name")
+        .annotate(total=Coalesce(Sum("amount"), Decimal("0.00"), output_field=decimal_output))
+        .order_by("-total")
+    )
+    context = {
+        "card": card,
+        "statement_year": year,
+        "statement_month": month,
+        "statement_month_label": month_label,
+        "closing_date": closing_date,
+        "due_date": due_date,
+        "period_start": period_start,
+        "period_end": period_end,
+        "installments": installments.order_by("number"),
+        "statement_total": total,
+        "category_breakdown": by_category,
+        "month_names": _month_names(),
+        "year_options": _year_options(year),
+    }
+    return render(request, "finance/card_statement.html", context)
 
 
 @login_required
@@ -884,7 +942,11 @@ def recurring_instance_value(request, pk):
 
 @login_required
 def import_start(request):
-    form = ImportPasteForm(household=request.household)
+    today = timezone.localdate()
+    form = ImportPasteForm(
+        household=request.household,
+        initial={"statement_year": today.year, "statement_month": today.month},
+    )
     return render(request, "finance/import_start.html", {"form": form})
 
 
@@ -895,34 +957,47 @@ def import_parse(request):
     if not form.is_valid():
         return render(request, "finance/import_start.html", {"form": form})
     source_text = form.cleaned_data["source_text"]
-    raw = analyze_invoice_text(source_text)
-    if not raw:
-        messages.error(request, "Não foi possível analisar o texto da fatura.")
+    card = form.cleaned_data.get("card")
+    statement_year = form.cleaned_data["statement_year"]
+    statement_month = form.cleaned_data["statement_month"]
+    if card is None:
+        messages.error(request, "Selecione um cartão para importar.")
+        return render(request, "finance/import_start.html", {"form": form})
+
+    parsed_items = parse_statement_text(
+        source_text,
+        statement_year=statement_year,
+        statement_month=statement_month,
+        closing_day=card.closing_day,
+    )
+    if not parsed_items:
+        messages.error(request, "Nenhum item válido encontrado.")
         return render(request, "finance/import_start.html", {"form": form})
 
     batch = ImportBatch.objects.create(
         household=request.household,
         created_by=request.user,
         source_text=source_text,
-        card=form.cleaned_data.get("card"),
+        card=card,
+        statement_year=statement_year,
+        statement_month=statement_month,
     )
     items_payload = []
-    for item in raw:
-        try:
-            items_payload.append(
-                {
-                    "date": date.fromisoformat(item["data"]),
-                    "description": item.get("descricao") or item.get("description"),
-                    "amount": Decimal(str(item.get("valor") or item.get("amount"))),
-                    "installments_count": int(item.get("parcelas") or item.get("installments_count") or 1),
-                    "purchase_type_raw": item.get("tipo_compra") or item.get("purchase_type_raw", ""),
-                }
-            )
-        except Exception:
-            continue
-    if not items_payload:
-        messages.error(request, "Nenhum item válido encontrado.")
-        return render(request, "finance/import_start.html", {"form": form})
+    for item in parsed_items:
+        items_payload.append(
+            {
+                "purchase_date": item.purchase_date,
+                "statement_year": item.statement_year,
+                "statement_month": item.statement_month,
+                "description": item.description,
+                "amount": item.amount,
+                "installments_total": item.installments_total,
+                "installments_current": item.installments_current,
+                "purchase_flag": item.flag,
+                "purchase_prefix_raw": item.prefix_raw or "",
+                "purchase_type_raw": "",
+            }
+        )
 
     build_import_items(batch, items_payload)
     response = render(request, "finance/import_review.html", {"batch": batch})
@@ -934,7 +1009,14 @@ def import_parse(request):
 def import_review(request, pk):
     batch = get_object_or_404(ImportBatch, pk=pk, household=request.household)
     formset = ImportReviewFormSet(queryset=batch.items.all(), form_kwargs={"household": request.household})
-    card_form = ImportPasteForm(household=request.household, initial={"card": batch.card})
+    card_form = ImportPasteForm(
+        household=request.household,
+        initial={
+            "card": batch.card,
+            "statement_year": batch.statement_year,
+            "statement_month": batch.statement_month,
+        },
+    )
     return render(
         request,
         "finance/import_review.html",
@@ -957,6 +1039,17 @@ def import_confirm(request, pk):
     if card_id:
         batch.card = Card.objects.filter(household=request.household, id=card_id).first()
         batch.save(update_fields=["card"])
+    statement_year_raw = request.POST.get("statement_year") or batch.statement_year
+    statement_month_raw = request.POST.get("statement_month") or batch.statement_month
+    if not statement_year_raw or not statement_month_raw:
+        messages.error(request, "Informe o ano e mês da fatura.")
+        return render(request, "finance/import_review.html", {"batch": batch, "formset": formset})
+    statement_year = int(statement_year_raw)
+    statement_month = int(statement_month_raw)
+    if batch.statement_year != statement_year or batch.statement_month != statement_month:
+        batch.statement_year = statement_year
+        batch.statement_month = statement_month
+        batch.save(update_fields=["statement_year", "statement_month"])
 
     if not formset.is_valid():
         messages.error(request, "Corrija os itens antes de confirmar.")
@@ -966,38 +1059,41 @@ def import_confirm(request, pk):
         for form in formset:
             item = form.save(commit=False)
             item.batch = batch
+            item.statement_year = statement_year
+            item.statement_month = statement_month
             item.save()
             if item.removed:
                 continue
-            if item.installments_count > 1:
-                if batch.card is None:
-                    messages.error(request, "Selecione um cartão para compras parceladas.")
-                    return render(
-                        request,
-                        "finance/import_review.html",
-                        {"batch": batch, "formset": formset},
-                    )
-                group = CardPurchaseGroup.objects.create(
-                    household=request.household,
-                    card=batch.card,
-                    description=item.description,
-                    total_amount=item.amount,
-                    installments_count=item.installments_count,
-                    first_due_date=item.date,
-                    category=item.category,
-                    created_by=request.user,
+            if batch.card is None:
+                messages.error(request, "Selecione um cartão para importar a fatura.")
+                return render(
+                    request,
+                    "finance/import_review.html",
+                    {"batch": batch, "formset": formset},
                 )
-                generate_installments_for_group(group)
-            else:
-                LedgerEntry.objects.create(
-                    household=request.household,
-                    date=item.date,
-                    kind=LedgerEntry.Kind.EXPENSE,
-                    amount=item.amount,
-                    description=item.description,
-                    category=item.category,
-                    created_by=request.user,
-                )
+            closing_date, _, _ = get_statement_window(
+                statement_year, statement_month, batch.card.closing_day
+            )
+            group = CardPurchaseGroup.objects.create(
+                household=request.household,
+                card=batch.card,
+                description=item.description,
+                total_amount=item.amount,
+                installments_count=item.installments_total,
+                first_due_date=closing_date,
+                purchase_date=item.purchase_date,
+                statement_year=statement_year,
+                statement_month=statement_month,
+                category=item.category,
+                created_by=request.user,
+            )
+            current_installment = item.installments_current or 1
+            generate_installments_from_statement(
+                group,
+                statement_year=statement_year,
+                statement_month=statement_month,
+                current_installment=current_installment,
+            )
         batch.status = ImportBatch.Status.CONFIRMED
         batch.confirmed_at = timezone.now()
         batch.save(update_fields=["status", "confirmed_at"])

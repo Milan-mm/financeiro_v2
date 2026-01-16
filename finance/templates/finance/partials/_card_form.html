@@ -14,6 +14,22 @@
         <div class="text-danger small">{{ error }}</div>
       {% endfor %}
     </div>
+    <div class="row g-3 mb-3">
+      <div class="col-sm-6">
+        {{ form.closing_day.label_tag }}
+        {{ form.closing_day }}
+        {% for error in form.closing_day.errors %}
+          <div class="text-danger small">{{ error }}</div>
+        {% endfor %}
+      </div>
+      <div class="col-sm-6">
+        {{ form.due_day.label_tag }}
+        {{ form.due_day }}
+        {% for error in form.due_day.errors %}
+          <div class="text-danger small">{{ error }}</div>
+        {% endfor %}
+      </div>
+    </div>
     <div class="form-check form-switch mb-4">
       {{ form.is_active }}
       {{ form.is_active.label_tag }}

@@ -18,9 +18,19 @@
           <div class="card-body">
             <form method="post" action="{% url 'finance:import-confirm' batch.id %}">
               {% csrf_token %}
-              <div class="mb-3">
-                <label class="form-label">Cartão (para parcelas)</label>
-                {{ card_form.card }}
+              <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                  <label class="form-label">Cartão</label>
+                  {{ card_form.card }}
+                </div>
+                <div class="col-md-3">
+                  {{ card_form.statement_year.label_tag }}
+                  {{ card_form.statement_year }}
+                </div>
+                <div class="col-md-3">
+                  {{ card_form.statement_month.label_tag }}
+                  {{ card_form.statement_month }}
+                </div>
               </div>
 
               {{ formset.management_form }}
@@ -28,10 +38,11 @@
                 <table class="table table-sm align-middle">
                   <thead class="table-light">
                     <tr>
-                      <th>Data</th>
+                      <th>Data compra</th>
                       <th>Descrição</th>
                       <th>Valor</th>
-                      <th>Parcelas</th>
+                      <th>Parcela atual</th>
+                      <th>Total</th>
                       <th>Categoria</th>
                       <th>Remover</th>
                     </tr>
@@ -39,10 +50,11 @@
                   <tbody>
                     {% for form in formset %}
                       <tr>
-                        <td>{{ form.date }}</td>
+                        <td>{{ form.purchase_date }}</td>
                         <td>{{ form.description }}</td>
                         <td>{{ form.amount }}</td>
-                        <td>{{ form.installments_count }}</td>
+                        <td>{{ form.installments_current }}</td>
+                        <td>{{ form.installments_total }}</td>
                         <td>{{ form.category }}</td>
                         <td>{{ form.removed }}</td>
                       </tr>

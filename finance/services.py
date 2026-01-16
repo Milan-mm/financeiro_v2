@@ -8,6 +8,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from django.db import transaction
 from django.utils import timezone
 
+from .billing import get_statement_window
 from .models import (
     CardPurchaseGroup,
     ImportBatch,
@@ -78,10 +79,51 @@ def generate_installments_for_group(group: CardPurchaseGroup) -> list[Installmen
                 group=group,
                 number=idx,
                 due_date=due_date,
+                statement_year=due_date.year,
+                statement_month=due_date.month,
                 amount=amount,
                 ledger_entry=entry,
             )
             created.append(installment)
+    return created
+
+
+def generate_installments_from_statement(
+    group: CardPurchaseGroup,
+    statement_year: int,
+    statement_month: int,
+    current_installment: int = 1,
+) -> list[Installment]:
+    plan = installment_plan(group.total_amount, group.installments_count, group.first_due_date)
+    created = []
+    start_number = max(1, current_installment)
+    for idx in range(start_number, group.installments_count + 1):
+        offset = idx - start_number
+        target_month = statement_month + offset
+        target_year = statement_year + (target_month - 1) // 12
+        target_month = ((target_month - 1) % 12) + 1
+        closing_date, _, _ = get_statement_window(target_year, target_month, group.card.closing_day)
+        amount = plan.amounts[idx - 1]
+        entry = LedgerEntry.objects.create(
+            household=group.household,
+            date=closing_date,
+            kind=LedgerEntry.Kind.EXPENSE,
+            amount=amount,
+            description=f"{group.description} {idx}/{group.installments_count}",
+            category=group.category,
+            created_by=group.created_by,
+        )
+        installment = Installment.objects.create(
+            household=group.household,
+            group=group,
+            number=idx,
+            due_date=closing_date,
+            statement_year=target_year,
+            statement_month=target_month,
+            amount=amount,
+            ledger_entry=entry,
+        )
+        created.append(installment)
     return created
 
 
@@ -154,10 +196,15 @@ def build_import_items(batch: ImportBatch, raw_items: list[dict]) -> list[Import
         created_items.append(
             ImportItem.objects.create(
                 batch=batch,
-                date=item["date"],
+                purchase_date=item["purchase_date"],
+                statement_year=item["statement_year"],
+                statement_month=item["statement_month"],
                 description=item["description"],
                 amount=item["amount"],
-                installments_count=item.get("installments_count", 1) or 1,
+                installments_total=item.get("installments_total", 1) or 1,
+                installments_current=item.get("installments_current"),
+                purchase_flag=item.get("purchase_flag", "UNKNOWN"),
+                purchase_prefix_raw=item.get("purchase_prefix_raw", ""),
                 purchase_type_raw=item.get("purchase_type_raw", ""),
             )
         )

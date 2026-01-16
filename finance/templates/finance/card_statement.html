@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}Fatura {{ card.name }}{% endblock %}
+
+{% block content %}
+  <div class="dashboard-layout">
+    {% include "partials/nav.html" %}
+
+    <main class="main-content">
+      <div class="container-xxl py-4">
+        <header class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 mb-4">
+          <div>
+            <p class="text-uppercase text-muted fw-semibold small mb-1">Fatura</p>
+            <h1 class="h3 fw-bold mb-1">{{ card.name }} — {{ statement_month_label }} {{ statement_year }}</h1>
+            <p class="text-muted mb-0">
+              Período {{ period_start|date:"d/m/Y" }} até {{ period_end|date:"d/m/Y" }} ·
+              Fechamento {{ closing_date|date:"d/m/Y" }} · Vencimento {{ due_date|date:"d/m/Y" }}
+            </p>
+          </div>
+          <form class="row g-2 align-items-end" method="get">
+            <div class="col-auto">
+              <label class="form-label">Mês</label>
+              <select name="month" class="form-select" onchange="this.form.submit()">
+                {% for name in month_names %}
+                  <option value="{{ forloop.counter }}" {% if forloop.counter == statement_month %}selected{% endif %}>{{ name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-auto">
+              <label class="form-label">Ano</label>
+              <select name="year" class="form-select" onchange="this.form.submit()">
+                {% for year_option in year_options %}
+                  <option value="{{ year_option }}" {% if year_option == statement_year %}selected{% endif %}>{{ year_option }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </form>
+        </header>
+
+        <section class="row g-3 mb-4">
+          <div class="col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+              <div class="card-body">
+                <p class="text-uppercase text-muted small mb-1">Total da fatura</p>
+                <h2 class="h4 fw-bold mb-0">R$ {{ statement_total }}</h2>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+              <div class="card-body">
+                <p class="text-uppercase text-muted small mb-1">Categorias principais</p>
+                <ul class="list-unstyled mb-0">
+                  {% for row in category_breakdown %}
+                    <li class="d-flex justify-content-between">
+                      <span>{{ row.group__category__name|default:"Sem categoria" }}</span>
+                      <span>R$ {{ row.total }}</span>
+                    </li>
+                  {% empty %}
+                    <li class="text-muted">Nenhuma categoria registrada.</li>
+                  {% endfor %}
+                </ul>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="card border-0 shadow-sm">
+          <div class="card-body">
+            <h3 class="h6 fw-semibold mb-3">Lançamentos da fatura</h3>
+            <div class="table-responsive">
+              <table class="table table-sm align-middle">
+                <thead class="table-light">
+                  <tr>
+                    <th>Descrição</th>
+                    <th>Parcela</th>
+                    <th class="text-end">Valor</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for installment in installments %}
+                    <tr>
+                      <td>{{ installment.group.description }}</td>
+                      <td>{{ installment.number }}/{{ installment.group.installments_count }}</td>
+                      <td class="text-end">R$ {{ installment.amount }}</td>
+                    </tr>
+                  {% empty %}
+                    <tr>
+                      <td colspan="3" class="text-muted">Nenhum lançamento nesta fatura.</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+{% endblock %}

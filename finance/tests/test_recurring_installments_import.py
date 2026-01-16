@@ -50,17 +50,23 @@ class RecurringInstallmentImportTests(TestCase):
         self.assertEqual(LedgerEntry.objects.filter(household=self.household).count(), 1)
 
     def test_import_confirm_idempotent(self):
+        card = Card.objects.create(household=self.household, name="Visa", created_by=self.user)
         batch = ImportBatch.objects.create(
             household=self.household,
             created_by=self.user,
             source_text="teste",
+            card=card,
+            statement_year=2024,
+            statement_month=5,
         )
         ImportItem.objects.create(
             batch=batch,
-            date=date(2024, 5, 20),
+            purchase_date=date(2024, 5, 20),
+            statement_year=2024,
+            statement_month=5,
             description="Mercado",
             amount=Decimal("50.00"),
-            installments_count=1,
+            installments_total=1,
         )
         confirm_url = reverse("finance:import-confirm", args=[batch.id])
         response = self.client.post(confirm_url, {
@@ -69,12 +75,16 @@ class RecurringInstallmentImportTests(TestCase):
             "form-MIN_NUM_FORMS": 0,
             "form-MAX_NUM_FORMS": 1000,
             "form-0-id": batch.items.first().id,
-            "form-0-date": "2024-05-20",
+            "form-0-purchase_date": "2024-05-20",
             "form-0-description": "Mercado",
             "form-0-amount": "50.00",
-            "form-0-installments_count": 1,
+            "form-0-installments_total": 1,
+            "form-0-installments_current": "",
             "form-0-category": "",
             "form-0-removed": "",
+            "card": str(card.id),
+            "statement_year": "2024",
+            "statement_month": "5",
         })
         self.assertEqual(response.status_code, 302)
         self.client.post(confirm_url, {
@@ -83,11 +93,15 @@ class RecurringInstallmentImportTests(TestCase):
             "form-MIN_NUM_FORMS": 0,
             "form-MAX_NUM_FORMS": 1000,
             "form-0-id": batch.items.first().id,
-            "form-0-date": "2024-05-20",
+            "form-0-purchase_date": "2024-05-20",
             "form-0-description": "Mercado",
             "form-0-amount": "50.00",
-            "form-0-installments_count": 1,
+            "form-0-installments_total": 1,
+            "form-0-installments_current": "",
             "form-0-category": "",
             "form-0-removed": "",
+            "card": str(card.id),
+            "statement_year": "2024",
+            "statement_month": "5",
         })
         self.assertEqual(LedgerEntry.objects.filter(household=self.household).count(), 1)

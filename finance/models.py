@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 from core.models import Household
@@ -165,6 +166,12 @@ class Card(models.Model):
     household = models.ForeignKey(Household, on_delete=models.CASCADE, related_name="cards")
     name = models.CharField(max_length=120)
     is_active = models.BooleanField(default=True)
+    closing_day = models.PositiveIntegerField(
+        default=25, validators=[MinValueValidator(1), MaxValueValidator(31)]
+    )
+    due_day = models.PositiveIntegerField(
+        default=5, validators=[MinValueValidator(1), MaxValueValidator(31)]
+    )
     created_by = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
@@ -191,6 +198,9 @@ class CardPurchaseGroup(models.Model):
     total_amount = models.DecimalField(max_digits=12, decimal_places=2)
     installments_count = models.PositiveIntegerField(default=1)
     first_due_date = models.DateField()
+    purchase_date = models.DateField(null=True, blank=True)
+    statement_year = models.PositiveIntegerField(null=True, blank=True)
+    statement_month = models.PositiveIntegerField(null=True, blank=True)
     category = models.ForeignKey(
         Category,
         on_delete=models.SET_NULL,
@@ -220,6 +230,8 @@ class Installment(models.Model):
     group = models.ForeignKey(CardPurchaseGroup, on_delete=models.CASCADE, related_name="installments")
     number = models.PositiveIntegerField()
     due_date = models.DateField()
+    statement_year = models.PositiveIntegerField(null=True, blank=True)
+    statement_month = models.PositiveIntegerField(null=True, blank=True)
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     ledger_entry = models.ForeignKey(
         LedgerEntry,
@@ -328,6 +340,8 @@ class ImportBatch(models.Model):
         blank=True,
         related_name="import_batches",
     )
+    statement_year = models.PositiveIntegerField(null=True, blank=True)
+    statement_month = models.PositiveIntegerField(null=True, blank=True)
     source_text = models.TextField()
     status = models.CharField(max_length=12, choices=Status.choices, default=Status.DRAFT)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -342,10 +356,15 @@ class ImportBatch(models.Model):
 
 class ImportItem(models.Model):
     batch = models.ForeignKey(ImportBatch, on_delete=models.CASCADE, related_name="items")
-    date = models.DateField()
+    purchase_date = models.DateField()
+    statement_year = models.PositiveIntegerField()
+    statement_month = models.PositiveIntegerField()
     description = models.CharField(max_length=255)
     amount = models.DecimalField(max_digits=12, decimal_places=2)
-    installments_count = models.PositiveIntegerField(default=1)
+    installments_total = models.PositiveIntegerField(default=1)
+    installments_current = models.PositiveIntegerField(null=True, blank=True)
+    purchase_flag = models.CharField(max_length=20, default="UNKNOWN")
+    purchase_prefix_raw = models.CharField(max_length=20, blank=True)
     purchase_type_raw = models.CharField(max_length=120, blank=True)
     category = models.ForeignKey(
         Category,

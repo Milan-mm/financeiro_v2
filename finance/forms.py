@@ -140,9 +140,11 @@ class ReceivableForm(HouseholdScopedForm):
 class CardForm(HouseholdScopedForm):
     class Meta:
         model = Card
-        fields = ["name", "is_active"]
+        fields = ["name", "closing_day", "due_day", "is_active"]
         labels = {
             "name": "Nome",
+            "closing_day": "Dia de fechamento",
+            "due_day": "Dia de vencimento",
             "is_active": "Ativo",
         }
 
@@ -231,14 +233,16 @@ class RecurringInstanceValueOverrideForm(HouseholdScopedForm):
 
 class ImportPasteForm(forms.Form):
     card = forms.ModelChoiceField(queryset=Card.objects.none(), required=False, label="Cartão")
-    months_ahead = forms.IntegerField(min_value=1, max_value=24, required=False, initial=3, label="Meses")
+    statement_year = forms.IntegerField(min_value=2000, max_value=2100, label="Ano da fatura")
+    statement_month = forms.IntegerField(min_value=1, max_value=12, label="Mês da fatura")
     source_text = forms.CharField(widget=forms.Textarea(attrs={"rows": 6}), label="Texto da fatura")
 
     def __init__(self, *args, household=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["card"].queryset = Card.objects.filter(household=household, is_active=True)
         self.fields["card"].widget.attrs.setdefault("class", "form-select")
-        self.fields["months_ahead"].widget.attrs.setdefault("class", "form-control")
+        self.fields["statement_year"].widget.attrs.setdefault("class", "form-control")
+        self.fields["statement_month"].widget.attrs.setdefault("class", "form-control")
         self.fields["source_text"].widget.attrs.setdefault("class", "form-control")
 
 
@@ -246,15 +250,25 @@ class ImportItemForm(forms.ModelForm):
     class Meta:
         model = ImportItem
         fields = [
-            "date",
+            "purchase_date",
             "description",
             "amount",
-            "installments_count",
+            "installments_total",
+            "installments_current",
             "category",
             "removed",
         ]
+        labels = {
+            "purchase_date": "Data",
+            "description": "Descrição",
+            "amount": "Valor",
+            "installments_total": "Total",
+            "installments_current": "Atual",
+            "category": "Categoria",
+            "removed": "Remover",
+        }
         widgets = {
-            "date": forms.DateInput(attrs={"type": "date"}),
+            "purchase_date": forms.DateInput(attrs={"type": "date"}),
         }
 
     def __init__(self, *args, household=None, **kwargs):
@@ -263,6 +277,19 @@ class ImportItemForm(forms.ModelForm):
             self.fields["category"].queryset = Category.objects.filter(
                 household=household, is_active=True
             )
+
+    def clean(self):
+        cleaned = super().clean()
+        total = cleaned.get("installments_total")
+        current = cleaned.get("installments_current")
+        if total is not None and total < 1:
+            self.add_error("installments_total", "Informe ao menos 1 parcela.")
+        if current is not None:
+            if total is not None and current > total:
+                self.add_error("installments_current", "Parcela atual não pode ser maior que o total.")
+            if current < 1:
+                self.add_error("installments_current", "Parcela atual deve ser maior que zero.")
+        return cleaned
 
 
 class InvestmentAccountForm(HouseholdScopedForm):
