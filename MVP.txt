@@ -1,0 +1,35 @@
+MVP - Sistema Financeiro Pessoal (FastAPI)
+
+O que faz (MVP):
+- Autenticação JWT (access/refresh) para dois usuários da mesma household.
+- CRUD de categorias e cartões.
+- Lançamentos avulsos (despesa/receita) com filtros por mês, categoria, usuário, cartão e forma de pagamento.
+- Parcelamentos: cria um grupo e gera as parcelas futuras automaticamente.
+- Recorrências (ex.: aluguel): cria um grupo recorrente e gera lançamentos mensais para os próximos meses.
+- Relatórios essenciais: resumo mensal e tendência por categoria.
+- Stubs de integrações (WhatsApp e recibos) para armazenar dados brutos.
+
+Futuras implementações (não incluídas no MVP):
+- Ciclo de fatura real do cartão (fechamento/vencimento para o mês correto).
+- Regras avançadas para editar apenas parcelas passadas/futuras com reprojeção automática.
+- Agendador para gerar recorrências de forma contínua (cron/worker).
+- Upload real de comprovantes com storage (S3/Cloud).
+- Notificações e parsing de mensagens do WhatsApp.
+- Rate limiting e auditoria avançada.
+
+Onde alterar variáveis/configurações:
+- Variáveis de ambiente em `.env` (exemplo em `.env.example`).
+  - DATABASE_URL: conexão Postgres (Railway)
+  - JWT_SECRET_KEY: segredo do JWT
+  - ADMIN_BOOTSTRAP_TOKEN: token para criação inicial de usuários e webhook
+  - CORS_ALLOW_ORIGINS: origens permitidas
+  - LOG_LEVEL: nível de log
+- Configuração central em `app/core/config.py`.
+- Rotas e regras por endpoint em `app/api/routes/`.
+- Modelos de dados em `app/models/`.
+- Migrations em `app/migrations/`.
+
+Notas sobre recorrências:
+- Endpoint: POST /recurring
+- O parâmetro `months_ahead` define quantos meses futuros serão gerados.
+- Recorrências usam o dia do mês definido em `start_date`; meses curtos são ajustados para o último dia.
