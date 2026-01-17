@@ -5,6 +5,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{% block title %}Financeiro{% endblock %}</title>
+
     <link
       href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
       rel="stylesheet"
@@ -17,12 +18,20 @@
     />
     <link rel="stylesheet" href="{% static 'core/styles.css' %}" />
     <link rel="stylesheet" href="{% static 'css/tailwind.css' %}" />
+
     {% block extra_head %}{% endblock %}
   </head>
+
   <body class="{% block body_class %}page bg-soft{% endblock %}" {% block body_attrs %}{% endblock %}>
+    <!-- Garante token disponível + seta cookie CSRF -->
+    <div id="csrf-token" style="display:none;">
+      {% csrf_token %}
+    </div>
+
     <div id="messages-container" class="position-fixed top-0 end-0 p-3" style="z-index: 1080;">
       {% include "partials/messages.html" %}
     </div>
+
     <div id="htmx-partials"></div>
 
     {% block body %}
@@ -36,45 +45,64 @@
       integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
       crossorigin="anonymous"
     ></script>
+
+    <!-- HTMX: carregar 1x -->
     <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+
+    <!-- CSRF global para TODOS hx-post/patch/delete -->
+    <script>
+      function getCSRFToken() {
+        const el = document.querySelector('#csrf-token input[name="csrfmiddlewaretoken"]');
+        return el ? el.value : null;
+      }
+
+      document.body.addEventListener('htmx:configRequest', (event) => {
+        const token = getCSRFToken();
+        if (token) {
+          event.detail.headers['X-CSRFToken'] = token;
+        }
+      });
+    </script>
+
+    <!-- Modal handling -->
     <script>
       const modalRoot = document.getElementById("modal-root");
+
       document.body.addEventListener("htmx:afterSwap", (event) => {
         if (event.detail.target.id === "modal-root" && modalRoot?.showModal) {
           modalRoot.showModal();
         }
       });
-  document.body.addEventListener("closeModal", () => {
-    const modal = document.getElementById("modal-root");
-    if (!modal || !modal.open) return;
 
-    // Remove foco interno
-    if (modal.contains(document.activeElement)) {
-      document.activeElement.blur();
-    }
+      document.body.addEventListener("closeModal", () => {
+        const modal = document.getElementById("modal-root");
+        if (!modal || !modal.open) return;
 
-    // Move foco para fora
-    document.body.focus({ preventScroll: true });
+        if (modal.contains(document.activeElement)) {
+          document.activeElement.blur();
+        }
 
-    modal.close();
-    modal.innerHTML = "";
-  });
+        modal.close();
+        modal.innerHTML = "";
+      });
     </script>
+
     <script src="{% static 'js/logs_badge.js' %}"></script>
-    {% block extra_scripts %}<script>
-  function setRandomCategoryColor() {
-    const input = document.querySelector('#modal-root input[name="color"]');
-    if (!input) return;
 
-    const randomColor =
-      '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
+    <!-- Função global (categorias) -->
+    <script>
+      function setRandomCategoryColor() {
+        const input = document.querySelector('#modal-root input[name="color"]');
+        if (!input) return;
 
-    input.value = randomColor;
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-  }
+        const randomColor =
+          "#" + Math.floor(Math.random() * 16777215).toString(16).padStart(6, "0");
 
-</script>
+        input.value = randomColor;
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+    </script>
 
-{% endblock %}
+    {% block extra_scripts %}{% endblock %}
   </body>
 </html>

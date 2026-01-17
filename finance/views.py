@@ -7,7 +7,9 @@ from django.contrib.auth.decorators import login_required
 from django.db import models, transaction
 from django.db.models import Sum
 from django.db.models.functions import Coalesce
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
@@ -67,9 +69,26 @@ def _is_htmx(request):
 
 
 def _render_partial(request, template, context, trigger=None):
-    response = render(request, template, context)
+    # Render do conteúdo principal
+    main_html = render_to_string(template, context, request=request)
+
+    # Render das mensagens (OOB)
+    messages_html = render_to_string(
+        "partials/messages.html",
+        {},
+        request=request,
+    )
+
+    # Junta tudo numa única resposta
+    html = main_html + messages_html
+
+    response = HttpResponse(html)
+
     if trigger:
-        response["HX-Trigger"] = json.dumps(trigger) if isinstance(trigger, dict) else trigger
+        response["HX-Trigger"] = (
+            json.dumps(trigger) if isinstance(trigger, dict) else trigger
+        )
+
     return response
 
 
