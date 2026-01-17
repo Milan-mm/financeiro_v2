@@ -4,92 +4,188 @@
     <i class="bi bi-graph-up-arrow"></i>
     <span>Financeiro</span>
   </div>
+
   <ul class="nav flex-column">
+
+    {# --- HOME --- #}
     <li class="nav-item">
       <a class="nav-link {% if current == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' %}">
         <i class="bi bi-house"></i>
         <span>Home</span>
       </a>
     </li>
+
+    {# --- FINANCEIRO --- #}
     <li class="nav-item">
-      <a class="nav-link {% if current == 'finance:categories' %}active{% endif %}" href="{% url 'finance:categories' %}">
-        <i class="bi bi-tags"></i>
-        <span>Categorias</span>
-      </a>
+      <details class="nav-group"
+        {% if current == 'finance:entries' or current == 'finance:receivables' or current == 'finance:recurring' or current == 'finance:import-start' %}
+          open
+        {% endif %}
+      >
+        <summary class="nav-link nav-group-toggle {% if current == 'finance:entries' or current == 'finance:receivables' or current == 'finance:recurring' or current == 'finance:import-start' %}active{% endif %}">
+          <i class="bi bi-wallet2"></i>
+          <span>Financeiro</span>
+          <i class="bi bi-chevron-down ms-auto nav-chevron"></i>
+        </summary>
+
+        <ul class="nav flex-column nav-submenu">
+          <li class="nav-item">
+            <a class="nav-link {% if current == 'finance:entries' %}active{% endif %}" href="{% url 'finance:entries' %}">
+              <i class="bi bi-journal-text"></i>
+              <span>Lançamentos</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if current == 'finance:receivables' %}active{% endif %}" href="{% url 'finance:receivables' %}">
+              <i class="bi bi-cash-coin"></i>
+              <span>Recebíveis</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if current == 'finance:recurring' %}active{% endif %}" href="{% url 'finance:recurring' %}">
+              <i class="bi bi-arrow-repeat"></i>
+              <span>Recorrências</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if current == 'finance:import-start' %}active{% endif %}" href="{% url 'finance:import-start' %}">
+              <i class="bi bi-cloud-upload"></i>
+              <span>Importador</span>
+            </a>
+          </li>
+        </ul>
+      </details>
     </li>
+
+    {# --- CARTÕES --- #}
     <li class="nav-item">
-      <a class="nav-link {% if current == 'finance:accounts' %}active{% endif %}" href="{% url 'finance:accounts' %}">
-        <i class="bi bi-bank"></i>
-        <span>Contas</span>
-      </a>
+      <details class="nav-group"
+        {% if current == 'finance:cards' or current == 'finance:purchases' %}
+          open
+        {% endif %}
+      >
+        <summary class="nav-link nav-group-toggle {% if current == 'finance:cards' or current == 'finance:purchases' %}active{% endif %}">
+          <i class="bi bi-credit-card"></i>
+          <span>Cartões</span>
+          <i class="bi bi-chevron-down ms-auto nav-chevron"></i>
+        </summary>
+
+        <ul class="nav flex-column nav-submenu">
+          <li class="nav-item">
+            <a class="nav-link {% if current == 'finance:cards' %}active{% endif %}" href="{% url 'finance:cards' %}">
+              <i class="bi bi-credit-card-2-front"></i>
+              <span>Cartões</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if current == 'finance:purchases' %}active{% endif %}" href="{% url 'finance:purchases' %}">
+              <i class="bi bi-receipt-cutoff"></i>
+              <span>Compras</span>
+            </a>
+          </li>
+        </ul>
+      </details>
     </li>
+
+    {# --- CADASTROS --- #}
     <li class="nav-item">
-      <a class="nav-link {% if current == 'finance:entries' %}active{% endif %}" href="{% url 'finance:entries' %}">
-        <i class="bi bi-journal-text"></i>
-        <span>Lançamentos</span>
-      </a>
+      <details class="nav-group"
+        {% if current == 'finance:accounts' or current == 'finance:categories' %}
+          open
+        {% endif %}
+      >
+        <summary class="nav-link nav-group-toggle {% if current == 'finance:accounts' or current == 'finance:categories' %}active{% endif %}">
+          <i class="bi bi-ui-checks-grid"></i>
+          <span>Cadastros</span>
+          <i class="bi bi-chevron-down ms-auto nav-chevron"></i>
+        </summary>
+
+        <ul class="nav flex-column nav-submenu">
+          <li class="nav-item">
+            <a class="nav-link {% if current == 'finance:accounts' %}active{% endif %}" href="{% url 'finance:accounts' %}">
+              <i class="bi bi-bank"></i>
+              <span>Contas</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if current == 'finance:categories' %}active{% endif %}" href="{% url 'finance:categories' %}">
+              <i class="bi bi-tags"></i>
+              <span>Categorias</span>
+            </a>
+          </li>
+        </ul>
+      </details>
     </li>
+
+    {# --- ANÁLISES --- #}
     <li class="nav-item">
-      <a class="nav-link {% if current == 'finance:receivables' %}active{% endif %}" href="{% url 'finance:receivables' %}">
-        <i class="bi bi-cash-coin"></i>
-        <span>Recebíveis</span>
-      </a>
+      <details class="nav-group"
+        {% if current == 'finance:investments' or current == 'finance:annual-stats' %}
+          open
+        {% endif %}
+      >
+        <summary class="nav-link nav-group-toggle {% if current == 'finance:investments' or current == 'finance:annual-stats' %}active{% endif %}">
+          <i class="bi bi-bar-chart"></i>
+          <span>Análises</span>
+          <i class="bi bi-chevron-down ms-auto nav-chevron"></i>
+        </summary>
+
+        <ul class="nav flex-column nav-submenu">
+          <li class="nav-item">
+            <a class="nav-link {% if current == 'finance:investments' %}active{% endif %}" href="{% url 'finance:investments' %}">
+              <i class="bi bi-graph-up-arrow"></i>
+              <span>Investimentos</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if current == 'finance:annual-stats' %}active{% endif %}" href="{% url 'finance:annual-stats' %}">
+              <i class="bi bi-bar-chart-line"></i>
+              <span>Estatísticas anuais</span>
+            </a>
+          </li>
+        </ul>
+      </details>
     </li>
+
+    {# --- SISTEMA --- #}
     <li class="nav-item">
-      <a class="nav-link {% if current == 'finance:cards' %}active{% endif %}" href="{% url 'finance:cards' %}">
-        <i class="bi bi-credit-card"></i>
-        <span>Cartões</span>
-      </a>
+      <details class="nav-group"
+        {% if current == 'settings' or current == 'system-logs' %}
+          open
+        {% endif %}
+      >
+        <summary class="nav-link nav-group-toggle {% if current == 'settings' or current == 'system-logs' %}active{% endif %}">
+          <i class="bi bi-gear"></i>
+          <span>Sistema</span>
+          <i class="bi bi-chevron-down ms-auto nav-chevron"></i>
+        </summary>
+
+        <ul class="nav flex-column nav-submenu">
+          <li class="nav-item">
+            <a class="nav-link {% if current == 'settings' %}active{% endif %}" href="{% url 'settings' %}">
+              <i class="bi bi-sliders"></i>
+              <span>Configurações</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if current == 'system-logs' %}active{% endif %}" href="{% url 'system-logs' %}">
+              <i class="bi bi-bug"></i>
+              <span>Logs do Sistema</span>
+              <span class="badge rounded-pill bg-danger ms-auto logs-pending-badge d-none">0</span>
+            </a>
+          </li>
+        </ul>
+      </details>
     </li>
-    <li class="nav-item">
-      <a class="nav-link {% if current == 'finance:purchases' %}active{% endif %}" href="{% url 'finance:purchases' %}">
-        <i class="bi bi-receipt-cutoff"></i>
-        <span>Compras</span>
-      </a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link {% if current == 'finance:recurring' %}active{% endif %}" href="{% url 'finance:recurring' %}">
-        <i class="bi bi-arrow-repeat"></i>
-        <span>Recorrências</span>
-      </a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link {% if current == 'finance:investments' %}active{% endif %}" href="{% url 'finance:investments' %}">
-        <i class="bi bi-graph-up-arrow"></i>
-        <span>Investimentos</span>
-      </a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link {% if current == 'finance:annual-stats' %}active{% endif %}" href="{% url 'finance:annual-stats' %}">
-        <i class="bi bi-bar-chart"></i>
-        <span>Estatísticas anuais</span>
-      </a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link {% if current == 'finance:import-start' %}active{% endif %}" href="{% url 'finance:import-start' %}">
-        <i class="bi bi-cloud-upload"></i>
-        <span>Importador</span>
-      </a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link {% if current == 'settings' %}active{% endif %}" href="{% url 'settings' %}">
-        <i class="bi bi-gear"></i>
-        <span>Configurações</span>
-      </a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link {% if current == 'system-logs' %}active{% endif %}" href="{% url 'system-logs' %}">
-        <i class="bi bi-bug"></i>
-        <span>Logs do Sistema</span>
-        <span class="badge rounded-pill bg-danger ms-auto logs-pending-badge d-none">0</span>
-      </a>
-    </li>
+
+    {# --- SAIR --- #}
     <li class="nav-item mt-auto">
       <a class="nav-link text-danger" href="{% url 'logout' %}">
         <i class="bi bi-box-arrow-right"></i>
         <span>Sair</span>
       </a>
     </li>
+
   </ul>
 </nav>
 {% endwith %}

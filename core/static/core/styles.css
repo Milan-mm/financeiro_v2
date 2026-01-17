@@ -98,6 +98,41 @@ body.privacy-active .blur-sensitive {
   color: #ffffff;
 }
 
+/* Remove o marcador padrão do <summary> */
+.nav-group summary {
+  list-style: none;
+  cursor: pointer;
+}
+.nav-group summary::-webkit-details-marker {
+  display: none;
+}
+
+/* Submenu indent */
+.nav-submenu {
+  margin-left: 0.75rem;
+  padding-left: 0.5rem;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Chevron rotation */
+.nav-chevron {
+  transition: transform 0.15s ease-in-out;
+}
+.nav-group[open] .nav-chevron {
+  transform: rotate(180deg);
+}
+
+/* Opcional: deixa o summary com o mesmo “look” do link */
+.nav-group-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.nav-group-toggle span {
+  flex: 0 1 auto;
+}
+
+
 .main-content {
   margin-left: 80px;
   width: 100%;
