@@ -14,13 +14,26 @@
         <div class="text-danger small">{{ error }}</div>
       {% endfor %}
     </div>
-    <div class="mb-3">
-      {{ form.color.label_tag }}
-      {{ form.color }}
-      {% for error in form.color.errors %}
-        <div class="text-danger small">{{ error }}</div>
-      {% endfor %}
-    </div>
+<div class="mb-3">
+  {{ form.color.label_tag }}
+
+  <div class="d-flex align-items-center gap-2">
+    {{ form.color }}
+
+    <button
+      type="button"
+      class="btn btn-outline-secondary btn-sm"
+      onclick="setRandomCategoryColor()"
+      title="Gerar cor aleatória"
+    >
+      🎲 Aleatória
+    </button>
+  </div>
+
+  {% for error in form.color.errors %}
+    <div class="text-danger small">{{ error }}</div>
+  {% endfor %}
+</div>
     <div class="mb-3">
       {{ form.ordering.label_tag }}
       {{ form.ordering }}

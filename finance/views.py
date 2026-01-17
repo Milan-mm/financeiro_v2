@@ -939,13 +939,21 @@ def recurring_instance_value(request, pk):
         {"form": form, "instance": instance},
     )
 
-
 @login_required
 def import_start(request):
     today = timezone.localdate()
+
+    print("\n[IMPORT_START]")
+    print("[IMPORT_START] today:", today)
+    print("[IMPORT_START] household:", request.household.id)
+    print("[IMPORT_START] user:", request.user.id)
+
     form = ImportPasteForm(
         household=request.household,
-        initial={"statement_year": today.year, "statement_month": today.month},
+        initial={
+            "statement_year": today.year,
+            "statement_month": today.month,
+        },
     )
     return render(request, "finance/import_start.html", {"form": form})
 
@@ -953,13 +961,31 @@ def import_start(request):
 @login_required
 @require_http_methods(["POST"])
 def import_parse(request):
+    print("\n[IMPORT_PARSE] ===============================")
+    print("[IMPORT_PARSE] POST recebido")
+    print("[IMPORT_PARSE] household:", request.household.id)
+    print("[IMPORT_PARSE] user:", request.user.id)
+
     form = ImportPasteForm(request.POST, household=request.household)
     if not form.is_valid():
+        print("[IMPORT_PARSE] FORM INVÁLIDO")
+        print("[IMPORT_PARSE] erros:", form.errors)
         return render(request, "finance/import_start.html", {"form": form})
+
     source_text = form.cleaned_data["source_text"]
     card = form.cleaned_data.get("card")
     statement_year = form.cleaned_data["statement_year"]
     statement_month = form.cleaned_data["statement_month"]
+
+    print("[IMPORT_PARSE] statement_year:", statement_year)
+    print("[IMPORT_PARSE] statement_month:", statement_month)
+    print("[IMPORT_PARSE] card:", card.id if card else None)
+    print("[IMPORT_PARSE] closing_day:", card.closing_day if card else None)
+
+    print("\n[IMPORT_PARSE] ===== SOURCE TEXT =====")
+    print(source_text)
+    print("[IMPORT_PARSE] ===== END SOURCE TEXT =====\n")
+
     if card is None:
         messages.error(request, "Selecione um cartão para importar.")
         return render(request, "finance/import_start.html", {"form": form})
@@ -970,6 +996,25 @@ def import_parse(request):
         statement_month=statement_month,
         closing_day=card.closing_day,
     )
+
+    print(f"[PARSE] itens parseados: {len(parsed_items)}")
+
+    for i, item in enumerate(parsed_items[:10]):
+        print(
+            "[PARSE ITEM]",
+            {
+                "purchase_date": item.purchase_date,
+                "statement_year": item.statement_year,
+                "statement_month": item.statement_month,
+                "description": item.description,
+                "amount": item.amount,
+                "installments_current": item.installments_current,
+                "installments_total": item.installments_total,
+                "flag": item.flag,
+                "prefix_raw": item.prefix_raw,
+            },
+        )
+
     if not parsed_items:
         messages.error(request, "Nenhum item válido encontrado.")
         return render(request, "finance/import_start.html", {"form": form})
@@ -982,33 +1027,47 @@ def import_parse(request):
         statement_year=statement_year,
         statement_month=statement_month,
     )
+
+    print("[IMPORT_PARSE] batch criado:", batch.id)
+
     items_payload = []
     for item in parsed_items:
-        items_payload.append(
-            {
-                "purchase_date": item.purchase_date,
-                "statement_year": item.statement_year,
-                "statement_month": item.statement_month,
-                "description": item.description,
-                "amount": item.amount,
-                "installments_total": item.installments_total,
-                "installments_current": item.installments_current,
-                "purchase_flag": item.flag,
-                "purchase_prefix_raw": item.prefix_raw or "",
-                "purchase_type_raw": "",
-            }
-        )
+        payload = {
+            "purchase_date": item.purchase_date,
+            "statement_year": item.statement_year,
+            "statement_month": item.statement_month,
+            "description": item.description,
+            "amount": item.amount,
+            "installments_total": item.installments_total,
+            "installments_current": item.installments_current,
+            "purchase_flag": item.flag,
+            "purchase_prefix_raw": item.prefix_raw or "",
+            "purchase_type_raw": "",
+        }
+        print("[IMPORT_PAYLOAD_ITEM]", payload)
+        items_payload.append(payload)
 
     build_import_items(batch, items_payload)
-    response = render(request, "finance/import_review.html", {"batch": batch})
-    response["HX-Redirect"] = reverse("finance:import-review", args=[batch.pk])
-    return response
+
+    return redirect("finance:import-review", batch.pk)
 
 
 @login_required
 def import_review(request, pk):
     batch = get_object_or_404(ImportBatch, pk=pk, household=request.household)
-    formset = ImportReviewFormSet(queryset=batch.items.all(), form_kwargs={"household": request.household})
+
+    print("\n[IMPORT_REVIEW]")
+    print("[IMPORT_REVIEW] batch:", batch.id)
+    print("[IMPORT_REVIEW] status:", batch.status)
+    print("[IMPORT_REVIEW] card:", batch.card_id)
+    print("[IMPORT_REVIEW] statement:", batch.statement_month, batch.statement_year)
+    print("[IMPORT_REVIEW] items:", batch.items.count())
+
+    formset = ImportReviewFormSet(
+        queryset=batch.items.all(),
+        form_kwargs={"household": request.household},
+    )
+
     card_form = ImportPasteForm(
         household=request.household,
         initial={
@@ -1017,10 +1076,15 @@ def import_review(request, pk):
             "statement_month": batch.statement_month,
         },
     )
+
     return render(
         request,
         "finance/import_review.html",
-        {"batch": batch, "formset": formset, "card_form": card_form},
+        {
+            "batch": batch,
+            "formset": formset,
+            "card_form": card_form,
+        },
     )
 
 
@@ -1028,57 +1092,114 @@ def import_review(request, pk):
 @require_http_methods(["POST"])
 def import_confirm(request, pk):
     batch = get_object_or_404(ImportBatch, pk=pk, household=request.household)
+
+    print("\n[IMPORT_CONFIRM] ===============================")
+    print("[IMPORT_CONFIRM] batch:", batch.id)
+    print("[IMPORT_CONFIRM] status:", batch.status)
+
     if batch.status == ImportBatch.Status.CONFIRMED:
         messages.info(request, "Importação já confirmada.")
         return redirect("dashboard")
 
     formset = ImportReviewFormSet(
-        request.POST, queryset=batch.items.all(), form_kwargs={"household": request.household}
+        request.POST,
+        queryset=batch.items.all(),
+        form_kwargs={"household": request.household},
     )
+
     card_id = request.POST.get("card")
     if card_id:
-        batch.card = Card.objects.filter(household=request.household, id=card_id).first()
+        batch.card = Card.objects.filter(
+            household=request.household, id=card_id
+        ).first()
         batch.save(update_fields=["card"])
+
     statement_year_raw = request.POST.get("statement_year") or batch.statement_year
     statement_month_raw = request.POST.get("statement_month") or batch.statement_month
+
+    print("[IMPORT_CONFIRM] statement_year_raw:", statement_year_raw)
+    print("[IMPORT_CONFIRM] statement_month_raw:", statement_month_raw)
+
     if not statement_year_raw or not statement_month_raw:
         messages.error(request, "Informe o ano e mês da fatura.")
-        return render(request, "finance/import_review.html", {"batch": batch, "formset": formset})
+        return render(
+            request,
+            "finance/import_review.html",
+            {"batch": batch, "formset": formset},
+        )
+
     statement_year = int(statement_year_raw)
     statement_month = int(statement_month_raw)
+
+    print("[IMPORT_CONFIRM] statement_year:", statement_year)
+    print("[IMPORT_CONFIRM] statement_month:", statement_month)
+    print("[IMPORT_CONFIRM] card:", batch.card.id if batch.card else None)
+    print("[IMPORT_CONFIRM] closing_day:", batch.card.closing_day if batch.card else None)
+
     if batch.statement_year != statement_year or batch.statement_month != statement_month:
         batch.statement_year = statement_year
         batch.statement_month = statement_month
         batch.save(update_fields=["statement_year", "statement_month"])
 
     if not formset.is_valid():
+        print("[IMPORT_CONFIRM] FORMSET INVÁLIDO")
+        print(formset.errors)
         messages.error(request, "Corrija os itens antes de confirmar.")
-        return render(request, "finance/import_review.html", {"batch": batch, "formset": formset})
+        return render(
+            request,
+            "finance/import_review.html",
+            {"batch": batch, "formset": formset},
+        )
 
     with transaction.atomic():
-        for form in formset:
+        print("[IMPORT_CONFIRM] INÍCIO TRANSACTION")
+
+        for idx, form in enumerate(formset):
+            print(f"\n[IMPORT_CONFIRM] LOOP IDX = {idx}")
+
             item = form.save(commit=False)
             item.batch = batch
             item.statement_year = statement_year
             item.statement_month = statement_month
             item.save()
+
+            print("[IMPORT_CONFIRM] item salvo:", item.id)
+
             if item.removed:
+                print("[IMPORT_CONFIRM] item removido:", item.id)
                 continue
-            if batch.card is None:
-                messages.error(request, "Selecione um cartão para importar a fatura.")
-                return render(
-                    request,
-                    "finance/import_review.html",
-                    {"batch": batch, "formset": formset},
-                )
-            closing_date, _, _ = get_statement_window(
-                statement_year, statement_month, batch.card.closing_day
+
+            print("\n[IMPORT_CONFIRM][ITEM]")
+            print("id:", item.id)
+            print("description:", item.description)
+            print("purchase_date:", item.purchase_date)
+            print("parcela_amount:", item.amount)
+            print(
+                "installments:",
+                f"{item.installments_current}/{item.installments_total}",
             )
+            print("category:", item.category_id)
+
+            closing_date, window_start, window_end = get_statement_window(
+                statement_year,
+                statement_month,
+                batch.card.closing_day,
+            )
+
+            print("[STATEMENT WINDOW]")
+            print("window_start:", window_start)
+            print("window_end:", window_end)
+            print("closing_date:", closing_date)
+
+            total_amount = item.amount * item.installments_total
+
+            print("[IMPORT_CONFIRM] total_amount calculado:", total_amount)
+
             group = CardPurchaseGroup.objects.create(
                 household=request.household,
                 card=batch.card,
                 description=item.description,
-                total_amount=item.amount,
+                total_amount=total_amount,
                 installments_count=item.installments_total,
                 first_due_date=closing_date,
                 purchase_date=item.purchase_date,
@@ -1087,19 +1208,38 @@ def import_confirm(request, pk):
                 category=item.category,
                 created_by=request.user,
             )
+
+            print("[IMPORT_CONFIRM] group criado:", group.id)
+
             current_installment = item.installments_current or 1
+
+            print(
+                "[IMPORT_CONFIRM] antes generate_installments_from_statement | current:",
+                current_installment,
+            )
+
             generate_installments_from_statement(
                 group,
                 statement_year=statement_year,
                 statement_month=statement_month,
                 current_installment=current_installment,
             )
+
+            print("[IMPORT_CONFIRM] depois generate_installments_from_statement")
+
+        print("[IMPORT_CONFIRM] FIM LOOP")
+
         batch.status = ImportBatch.Status.CONFIRMED
         batch.confirmed_at = timezone.now()
         batch.save(update_fields=["status", "confirmed_at"])
 
+        print("[IMPORT_CONFIRM] batch confirmado:", batch.id)
+
+    print("[IMPORT_CONFIRM] FIM TRANSACTION")
+
     messages.success(request, "Importação confirmada.")
     return redirect("dashboard")
+
 
 
 def _investment_summary_context(request, year):

@@ -258,38 +258,23 @@ class ImportItemForm(forms.ModelForm):
             "category",
             "removed",
         ]
-        labels = {
-            "purchase_date": "Data",
-            "description": "Descrição",
-            "amount": "Valor",
-            "installments_total": "Total",
-            "installments_current": "Atual",
-            "category": "Categoria",
-            "removed": "Remover",
-        }
         widgets = {
-            "purchase_date": forms.DateInput(attrs={"type": "date"}),
+            "purchase_date": forms.DateInput(
+                attrs={"type": "date"},
+                format="%Y-%m-%d",
+            ),
         }
 
     def __init__(self, *args, household=None, **kwargs):
         super().__init__(*args, **kwargs)
+
+        self.fields["purchase_date"].input_formats = ["%Y-%m-%d"]
+
         if household is not None:
             self.fields["category"].queryset = Category.objects.filter(
-                household=household, is_active=True
+                household=household,
+                is_active=True,
             )
-
-    def clean(self):
-        cleaned = super().clean()
-        total = cleaned.get("installments_total")
-        current = cleaned.get("installments_current")
-        if total is not None and total < 1:
-            self.add_error("installments_total", "Informe ao menos 1 parcela.")
-        if current is not None:
-            if total is not None and current > total:
-                self.add_error("installments_current", "Parcela atual não pode ser maior que o total.")
-            if current < 1:
-                self.add_error("installments_current", "Parcela atual deve ser maior que zero.")
-        return cleaned
 
 
 class InvestmentAccountForm(HouseholdScopedForm):

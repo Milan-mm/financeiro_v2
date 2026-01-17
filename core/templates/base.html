@@ -44,14 +44,37 @@
           modalRoot.showModal();
         }
       });
-      document.body.addEventListener("closeModal", () => {
-        if (modalRoot?.open) {
-          modalRoot.close();
-          modalRoot.innerHTML = "";
-        }
-      });
+  document.body.addEventListener("closeModal", () => {
+    const modal = document.getElementById("modal-root");
+    if (!modal || !modal.open) return;
+
+    // Remove foco interno
+    if (modal.contains(document.activeElement)) {
+      document.activeElement.blur();
+    }
+
+    // Move foco para fora
+    document.body.focus({ preventScroll: true });
+
+    modal.close();
+    modal.innerHTML = "";
+  });
     </script>
     <script src="{% static 'js/logs_badge.js' %}"></script>
-    {% block extra_scripts %}{% endblock %}
+    {% block extra_scripts %}<script>
+  function setRandomCategoryColor() {
+    const input = document.querySelector('#modal-root input[name="color"]');
+    if (!input) return;
+
+    const randomColor =
+      '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
+
+    input.value = randomColor;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+</script>
+
+{% endblock %}
   </body>
 </html>

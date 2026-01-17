@@ -49,6 +49,8 @@
                   </thead>
                   <tbody>
                     {% for form in formset %}
+                          {{ form.id }}
+
                       <tr>
                         <td>{{ form.purchase_date }}</td>
                         <td>{{ form.description }}</td>
