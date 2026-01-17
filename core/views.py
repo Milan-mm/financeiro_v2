@@ -417,48 +417,6 @@ def dashboard(request):
     return render(request, "core/dashboard.html", context)
 
 
-@login_required
-def cards_view(request):
-    form = CardForm(prefix="card")
-    cards = Card.objects.filter(user=request.user).order_by("nome")
-    if request.method == "POST":
-        form = CardForm(request.POST, prefix="card")
-        if form.is_valid():
-            form.instance.user = request.user
-            form.save()
-            messages.success(request, "Cartão cadastrado com sucesso.")
-            return redirect("cards")
-    return render(
-        request,
-        "core/cards.html",
-        {
-            "cards": cards,
-            "card_form": form,
-        },
-    )
-
-
-@login_required
-def expenses_view(request):
-    today = date.today()
-    month_param = request.GET.get("month")
-    if month_param:
-        year, month = [int(part) for part in month_param.split("-")]
-    else:
-        year, month = today.year, today.month
-
-    month_data = _build_month_data(request.user, year, month)
-    context = {
-        "month_start": date(year, month, 1),
-        "installments": month_data["purchases"],
-        "recurring_items": month_data["recurring"],
-        "total_card": month_data["totals"]["total_card"],
-        "total_recurring": month_data["totals"]["total_recurring"],
-        "total_month": month_data["totals"]["total_month"],
-    }
-    return render(request, "core/expenses.html", context)
-
-
 # 2. Atualiza a função settings_view com esta nova versão completa
 @login_required
 def settings_view(request):
