@@ -1,0 +1,15 @@
+{% include "finance/partials/_payables_summary.html" %}
+
+<section class="card border-0 shadow-sm mb-4">
+  <div class="card-body">
+    <h2 class="h5 fw-semibold mb-3">Recorrências</h2>
+    {% include "finance/partials/_payables_recurring_table.html" %}
+  </div>
+</section>
+
+<section class="card border-0 shadow-sm">
+  <div class="card-body">
+    <h2 class="h5 fw-semibold mb-3">Parcelas de cartão</h2>
+    {% include "finance/partials/_payables_installments_table.html" %}
+  </div>
+</section>

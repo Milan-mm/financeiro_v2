@@ -18,17 +18,23 @@
     {# --- FINANCEIRO --- #}
     <li class="nav-item">
       <details class="nav-group"
-        {% if current == 'finance:entries' or current == 'finance:receivables' or current == 'finance:recurring' or current == 'finance:import-start' %}
+        {% if current == 'finance:entries' or current == 'finance:receivables' or current == 'finance:recurring' or current == 'finance:import-start' or current == 'finance:payables' %}
           open
         {% endif %}
       >
-        <summary class="nav-link nav-group-toggle {% if current == 'finance:entries' or current == 'finance:receivables' or current == 'finance:recurring' or current == 'finance:import-start' %}active{% endif %}">
+        <summary class="nav-link nav-group-toggle {% if current == 'finance:entries' or current == 'finance:receivables' or current == 'finance:recurring' or current == 'finance:import-start' or current == 'finance:payables' %}active{% endif %}">
           <i class="bi bi-wallet2"></i>
           <span>Financeiro</span>
           <i class="bi bi-chevron-down ms-auto nav-chevron"></i>
         </summary>
 
         <ul class="nav flex-column nav-submenu">
+          <li class="nav-item">
+            <a class="nav-link {% if current == 'finance:payables' %}active{% endif %}" href="{% url 'finance:payables' %}">
+              <i class="bi bi-calendar-check"></i>
+              <span>Contas a pagar</span>
+            </a>
+          </li>
           <li class="nav-item">
             <a class="nav-link {% if current == 'finance:entries' %}active{% endif %}" href="{% url 'finance:entries' %}">
               <i class="bi bi-journal-text"></i>

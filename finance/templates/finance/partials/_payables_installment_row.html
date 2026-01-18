@@ -1,0 +1,8 @@
+<tr>
+  <td>{{ installment.due_date|date:"d/m/Y" }}</td>
+  <td>{{ installment.group.card.name }}</td>
+  <td>{{ installment.group.description }}</td>
+  <td>{{ installment.number }}/{{ installment.group.installments_count }}</td>
+  <td>{{ installment.group.category.name|default:"Sem categoria" }}</td>
+  <td class="text-end">R$ {{ installment.amount }}</td>
+</tr>

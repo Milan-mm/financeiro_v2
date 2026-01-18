@@ -224,6 +224,41 @@ def _category_breakdown(queryset, total):
     return results
 
 
+def _payables_context(request, year, month):
+    recurring_instances = RecurringInstance.objects.filter(
+        household=request.household,
+        year=year,
+        month=month,
+    ).select_related("rule", "rule__category", "rule__account")
+    installments = Installment.objects.filter(
+        household=request.household,
+        statement_year=year,
+        statement_month=month,
+    ).select_related("group", "group__card", "group__category")
+
+    decimal_output = models.DecimalField(max_digits=12, decimal_places=2)
+    recurring_total = recurring_instances.aggregate(
+        total=Coalesce(Sum("amount"), Decimal("0.00"), output_field=decimal_output)
+    )["total"]
+    recurring_unpaid_total = recurring_instances.filter(is_paid=False).aggregate(
+        total=Coalesce(Sum("amount"), Decimal("0.00"), output_field=decimal_output)
+    )["total"]
+    installments_total = installments.aggregate(
+        total=Coalesce(Sum("amount"), Decimal("0.00"), output_field=decimal_output)
+    )["total"]
+
+    return {
+        "year": year,
+        "month": month,
+        "recurring_instances": recurring_instances,
+        "installments": installments,
+        "recurring_total": recurring_total,
+        "recurring_unpaid_total": recurring_unpaid_total,
+        "installments_total": installments_total,
+        "grand_total": recurring_total + installments_total,
+    }
+
+
 def _daily_cumulative(queryset, month_start):
     days_in_month = monthrange(month_start.year, month_start.month)[1]
     daily = [0] * days_in_month
@@ -821,6 +856,74 @@ def purchase_regenerate(request, pk):
     regenerate_future_installments(group, from_date)
     messages.success(request, "Parcelas futuras recriadas.")
     return redirect("finance:purchase-detail", pk=group.pk)
+
+
+@login_required
+def payables_list(request):
+    today = timezone.localdate()
+    year = int(request.GET.get("year", today.year))
+    month = int(request.GET.get("month", today.month))
+    context = _payables_context(request, year, month)
+    context.update(
+        {
+            "month_names": _month_names(),
+            "year_options": _year_options(year),
+        }
+    )
+    if _is_htmx(request):
+        return _render_partial(request, "finance/partials/_payables_content.html", context)
+    return render(request, "finance/payables.html", context)
+
+
+@login_required
+@require_http_methods(["POST"])
+def payables_generate(request):
+    months_ahead = int(request.POST.get("months_ahead", 6) or 6)
+    today = timezone.localdate()
+    year = int(request.POST.get("year", today.year))
+    month = int(request.POST.get("month", today.month))
+
+    print("\n[PAYABLES_GENERATE]")
+    print("months_ahead:", months_ahead)
+    print("filter year/month:", year, month)
+    print("household:", request.household.id)
+
+    rules = RecurringRule.objects.filter(household=request.household, active=True)
+    print("active rules found:", rules.count())
+
+    created_count = 0
+
+    for rule in rules:
+        print(f"\n[PAYABLES_GENERATE] rule {rule.id} - {rule.description}")
+        created = generate_recurring_instances(rule, months_ahead)
+        print(f"instances created for rule {rule.id}: {len(created)}")
+        created_count += len(created)
+
+    print("[PAYABLES_GENERATE] TOTAL CREATED:", created_count)
+
+    messages.success(request, f"{created_count} instância(s) gerada(s).")
+
+    context = _payables_context(request, year, month)
+    return _render_partial(
+        request,
+        "finance/partials/_payables_content.html",
+        context,
+    )
+
+
+
+@login_required
+@require_http_methods(["POST"])
+def payables_recurring_pay(request, pk):
+    instance = get_object_or_404(RecurringInstance, pk=pk, household=request.household)
+    instance = pay_recurring_instance(instance)
+    messages.success(request, "Recorrência paga.")
+    return _render_partial(
+        request,
+        "finance/partials/_payables_recurring_row.html",
+        {"instance": instance},
+        trigger={"dashboard:refresh": True, "payables:refresh": True},
+    )
 
 
 @login_required

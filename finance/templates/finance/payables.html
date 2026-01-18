@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}Contas a pagar{% endblock %}
+
+{% block content %}
+  <div class="dashboard-layout">
+    {% include "partials/nav.html" %}
+
+    <main class="main-content">
+      <div class="container-xxl py-4">
+        <header class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 mb-4">
+          <div>
+            <p class="text-uppercase text-muted fw-semibold small mb-1">Relatórios</p>
+            <h1 class="h3 fw-bold mb-1">Contas a pagar</h1>
+            <p class="text-muted mb-0">Consulte obrigações futuras e marque recorrências como pagas.</p>
+          </div>
+        </header>
+
+        <section class="card border-0 shadow-sm mb-4">
+          <div class="card-body">
+            <form
+              id="payables-filter-form"
+              class="row g-3 align-items-end"
+              hx-get="{% url 'finance:payables' %}"
+              hx-target="#payables-content"
+              hx-swap="innerHTML"
+              hx-trigger="change"
+            >
+              <div class="col-6 col-md-3">
+                <label class="form-label small" for="payables-year">Ano</label>
+                <select class="form-select form-select-sm" id="payables-year" name="year">
+                  {% for option in year_options %}
+                    <option value="{{ option }}" {% if option == year %}selected{% endif %}>{{ option }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-6 col-md-3">
+                <label class="form-label small" for="payables-month">Mês</label>
+                <select class="form-select form-select-sm" id="payables-month" name="month">
+                  {% for name in month_names %}
+                    <option value="{{ forloop.counter }}" {% if forloop.counter == month %}selected{% endif %}>
+                      {{ name }}
+                    </option>
+                  {% endfor %}
+                </select>
+              </div>
+            </form>
+            <form
+              class="row g-2 align-items-end mt-3"
+              hx-post="{% url 'finance:payables-generate' %}"
+              hx-target="#payables-content"
+              hx-swap="innerHTML"
+              hx-include="#payables-filter-form"
+            >
+              <div class="col-6 col-md-3">
+                <label class="form-label small" for="payables-generate-months">Gerar meses</label>
+                <input
+                  type="number"
+                  min="1"
+                  class="form-control form-control-sm"
+                  id="payables-generate-months"
+                  name="months_ahead"
+                  value="6"
+                />
+              </div>
+              <div class="col-auto">
+                <button class="btn btn-outline-primary btn-sm" type="submit">
+                  <i class="bi bi-collection me-1"></i>Gerar N meses à frente
+                </button>
+              </div>
+            </form>
+          </div>
+        </section>
+
+        <div
+          id="payables-content"
+          hx-get="{% url 'finance:payables' %}"
+          hx-trigger="payables:refresh from:body"
+          hx-include="#payables-filter-form"
+          hx-target="this"
+          hx-swap="innerHTML"
+        >
+          {% include "finance/partials/_payables_content.html" %}
+        </div>
+      </div>
+    </main>
+  </div>
+{% endblock %}

@@ -138,21 +138,42 @@ def regenerate_future_installments(group: CardPurchaseGroup, from_date: date) ->
 
 
 def generate_recurring_instances(rule: RecurringRule, months_ahead: int) -> list[RecurringInstance]:
+    print("\n[RECURRING_GENERATE]")
+    print("rule:", rule.id, "-", rule.description)
+    print("months_ahead:", months_ahead)
+
     if months_ahead <= 0:
+        print("ABORT: months_ahead <= 0")
         return []
 
     today = timezone.localdate()
     start_month = date(today.year, today.month, 1)
+
+    print("today:", today)
+    print("start_month:", start_month)
+    print("rule.start_date:", rule.start_date)
+    print("rule.end_date:", rule.end_date)
+
     instances = []
 
     for offset in range(months_ahead):
         target_month = add_months(start_month, offset)
+        print(f"\n[CHECK] target:", target_month.year, target_month.month)
+
         if rule.start_date > target_month:
+            print("SKIP: before start_date")
             continue
+
         if rule.end_date and rule.end_date < target_month:
+            print("SKIP: after end_date")
             continue
-        due_day = min(rule.due_day, last_day_of_month(target_month.year, target_month.month))
+
+        due_day = min(
+            rule.due_day,
+            last_day_of_month(target_month.year, target_month.month),
+        )
         due_date = date(target_month.year, target_month.month, due_day)
+
         instance, created = RecurringInstance.objects.get_or_create(
             household=rule.household,
             rule=rule,
@@ -163,10 +184,20 @@ def generate_recurring_instances(rule: RecurringRule, months_ahead: int) -> list
                 "amount": rule.amount,
             },
         )
+
+        print(
+            "RESULT:",
+            f"{target_month.month}/{target_month.year}",
+            "→",
+            "CREATED" if created else "EXISTS",
+            f"(id={instance.id})",
+        )
+
         if created:
             instances.append(instance)
-    return instances
 
+    print("[RECURRING_GENERATE] created:", len(instances))
+    return instances
 
 def pay_recurring_instance(instance: RecurringInstance) -> RecurringInstance:
     with transaction.atomic():

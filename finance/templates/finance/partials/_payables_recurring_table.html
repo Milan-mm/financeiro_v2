@@ -1,0 +1,23 @@
+<div class="table-responsive">
+  <table class="table table-sm align-middle">
+    <thead class="table-light">
+      <tr>
+        <th>Vencimento</th>
+        <th>Descrição</th>
+        <th>Categoria</th>
+        <th class="text-end">Valor</th>
+        <th>Status</th>
+        <th class="text-end">Ações</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for instance in recurring_instances %}
+        {% include "finance/partials/_payables_recurring_row.html" %}
+      {% empty %}
+        <tr>
+          <td colspan="6" class="text-muted">Nenhuma recorrência para o mês.</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

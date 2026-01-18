@@ -1,0 +1,25 @@
+<tr id="payables-recurring-{{ instance.id }}">
+  <td>{{ instance.due_date|date:"d/m/Y" }}</td>
+  <td>{{ instance.rule.description }}</td>
+  <td>{{ instance.rule.category.name|default:"Sem categoria" }}</td>
+  <td class="text-end">R$ {{ instance.amount }}</td>
+  <td>
+    {% if instance.is_paid %}
+      <span class="badge text-bg-success">Pago</span>
+    {% else %}
+      <span class="badge text-bg-warning">Pendente</span>
+    {% endif %}
+  </td>
+  <td class="text-end">
+    {% if not instance.is_paid %}
+      <button
+        class="btn btn-outline-success btn-sm"
+        hx-post="{% url 'finance:payables-recurring-pay' instance.id %}"
+        hx-target="#payables-recurring-{{ instance.id }}"
+        hx-swap="outerHTML"
+      >
+        Marcar pago
+      </button>
+    {% endif %}
+  </td>
+</tr>

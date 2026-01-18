@@ -9,6 +9,18 @@ from finance.billing import get_statement_window
 from finance.models import Card
 from finance.statement_importer import parse_statement_text
 
+def infer_purchase_flag(prefix: str | None) -> str:
+    if not prefix:
+        return "UNKNOWN"
+
+    prefix = prefix.strip()
+
+    return {
+        "1": "DEPENDENT",
+        "2": "ONLINE",
+        "3": "PHYSICAL",
+    }.get(prefix, "UNKNOWN")
+
 
 class Command(BaseCommand):
     help = "Inspeciona o parsing de uma fatura de cartão e imprime os detalhes."
@@ -65,8 +77,11 @@ class Command(BaseCommand):
             total += item.amount
             if item.installments_total > 1:
                 installments += 1
+            flag = infer_purchase_flag(item.prefix_raw)
+
             self.stdout.write(
-                f"{item.prefix_raw or '-'} | {item.flag} | {item.purchase_date:%d/%m/%Y} | "
+                f"{item.prefix_raw or '-'} | {flag} | {item.purchase_date:%d/%m/%Y} | "
+
                 f"{parcel} | {item.statement_month}/{item.statement_year} | "
                 f"{item.ledger_date:%d/%m/%Y} | {item.amount} | {item.inference_note} | {item.description}"
             )
@@ -83,27 +98,35 @@ class Command(BaseCommand):
             model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
             payload = [
                 {
+                    "prefix_raw": item.prefix_raw,
                     "purchase_date": item.purchase_date.isoformat(),
-                    "statement": f"{item.statement_month}/{item.statement_year}",
-                    "parcel": (
-                        f"{item.installments_current}/{item.installments_total}"
-                        if item.installments_total > 1
-                        else None
-                    ),
+                    "statement_month": item.statement_month,
+                    "statement_year": item.statement_year,
+                    "installments_current": item.installments_current,
+                    "installments_total": item.installments_total,
                     "amount": str(item.amount),
                     "note": item.inference_note,
+                    "description": item.description,
                 }
                 for item in parsed
             ]
+
             response = client.chat.completions.create(
                 model=model,
                 messages=[
                     {
                         "role": "user",
                         "content": (
-                            "Analise os itens parseados e indique inconsistências nas inferências de ano ou parcelas.\n"
-                            f"Contexto: statement {month}/{year}.\nItens:\n{json.dumps(payload, ensure_ascii=False)}"
+                            "Review the parsed credit card statement items and point out ONLY possible "
+                            "inconsistencies in year or installment numbering.\n\n"
+                            "Rules:\n"
+                            "- Do NOT infer purchase type.\n"
+                            "- Do NOT reinterpret prefix codes.\n"
+                            "- Focus only on dates and installments.\n\n"
+                            f"Statement context: {month}/{year}\n"
+                            f"Items:\n{json.dumps(payload, ensure_ascii=False)}"
                         ),
+
                     }
                 ],
                 temperature=0,
