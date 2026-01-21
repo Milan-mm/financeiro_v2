@@ -96,33 +96,35 @@ def generate_installments_from_statement(
 ) -> list[Installment]:
     plan = installment_plan(group.total_amount, group.installments_count, group.first_due_date)
     created = []
-    start_number = max(1, current_installment)
-    for idx in range(start_number, group.installments_count + 1):
-        offset = idx - start_number
-        target_month = statement_month + offset
-        target_year = statement_year + (target_month - 1) // 12
-        target_month = ((target_month - 1) % 12) + 1
-        closing_date, _, _ = get_statement_window(target_year, target_month, group.card.closing_day)
-        amount = plan.amounts[idx - 1]
+    target_number = max(1, current_installment)
+    target_month = statement_month
+    target_year = statement_year
+    closing_date, _, _ = get_statement_window(target_year, target_month, group.card.closing_day)
+    amount = plan.amounts[target_number - 1]
+    entry_description = f"{group.description} {target_number}/{group.installments_count}"
+    installment, was_created = Installment.objects.get_or_create(
+        household=group.household,
+        group=group,
+        number=target_number,
+        defaults={
+            "due_date": closing_date,
+            "statement_year": target_year,
+            "statement_month": target_month,
+            "amount": amount,
+        },
+    )
+    if was_created:
         entry = LedgerEntry.objects.create(
             household=group.household,
             date=closing_date,
             kind=LedgerEntry.Kind.EXPENSE,
             amount=amount,
-            description=f"{group.description} {idx}/{group.installments_count}",
+            description=entry_description,
             category=group.category,
             created_by=group.created_by,
         )
-        installment = Installment.objects.create(
-            household=group.household,
-            group=group,
-            number=idx,
-            due_date=closing_date,
-            statement_year=target_year,
-            statement_month=target_month,
-            amount=amount,
-            ledger_entry=entry,
-        )
+        installment.ledger_entry = entry
+        installment.save(update_fields=["ledger_entry"])
         created.append(installment)
     return created
 

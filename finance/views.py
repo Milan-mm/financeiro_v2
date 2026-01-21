@@ -54,6 +54,7 @@ from .services import (
     regenerate_future_installments,
     build_import_items,
 )
+from .utils import build_installment_logical_key
 from .services_investments import (
     compute_account_series,
     compute_mom_deltas,
@@ -1276,6 +1277,8 @@ def import_confirm(request, pk):
     with transaction.atomic():
         print("[IMPORT_CONFIRM] INÍCIO TRANSACTION")
 
+        created_installments_count = 0
+
         for idx, form in enumerate(formset):
             print(f"\n[IMPORT_CONFIRM] LOOP IDX = {idx}")
 
@@ -1317,19 +1320,37 @@ def import_confirm(request, pk):
 
             print("[IMPORT_CONFIRM] total_amount calculado:", total_amount)
 
-            group = CardPurchaseGroup.objects.create(
-                household=request.household,
-                card=batch.card,
-                description=item.description,
-                total_amount=total_amount,
-                installments_count=item.installments_total,
-                first_due_date=closing_date,
-                purchase_date=item.purchase_date,
-                statement_year=statement_year,
-                statement_month=statement_month,
-                category=item.category,
-                created_by=request.user,
-            )
+            group = None
+            logical_key = None
+            if item.installments_total and item.installments_total > 1:
+                # Deterministic match only; descrição variável pode exigir normalização extra em sprint futura.
+                logical_key = build_installment_logical_key(
+                    item.description,
+                    item.purchase_date,
+                    item.amount,
+                    item.installments_total,
+                )
+                group = CardPurchaseGroup.objects.filter(
+                    household=request.household,
+                    card=batch.card,
+                    logical_key=logical_key,
+                ).first()
+
+            if group is None:
+                group = CardPurchaseGroup.objects.create(
+                    household=request.household,
+                    card=batch.card,
+                    description=item.description,
+                    logical_key=logical_key,
+                    total_amount=total_amount,
+                    installments_count=item.installments_total,
+                    first_due_date=closing_date,
+                    purchase_date=item.purchase_date,
+                    statement_year=statement_year,
+                    statement_month=statement_month,
+                    category=item.category,
+                    created_by=request.user,
+                )
 
             print("[IMPORT_CONFIRM] group criado:", group.id)
 
@@ -1340,7 +1361,7 @@ def import_confirm(request, pk):
                 current_installment,
             )
 
-            generate_installments_from_statement(
+            created_installments = generate_installments_from_statement(
                 group,
                 statement_year=statement_year,
                 statement_month=statement_month,
@@ -1348,6 +1369,7 @@ def import_confirm(request, pk):
             )
 
             print("[IMPORT_CONFIRM] depois generate_installments_from_statement")
+            created_installments_count += len(created_installments)
 
         print("[IMPORT_CONFIRM] FIM LOOP")
 
@@ -1359,7 +1381,10 @@ def import_confirm(request, pk):
 
     print("[IMPORT_CONFIRM] FIM TRANSACTION")
 
-    messages.success(request, "Importação confirmada.")
+    messages.success(
+        request,
+        f"Importação confirmada. {created_installments_count} parcela(s) nova(s).",
+    )
     return redirect("dashboard")
 
 

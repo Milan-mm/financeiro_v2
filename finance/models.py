@@ -195,6 +195,7 @@ class CardPurchaseGroup(models.Model):
     household = models.ForeignKey(Household, on_delete=models.CASCADE, related_name="purchase_groups")
     card = models.ForeignKey(Card, on_delete=models.CASCADE, related_name="purchase_groups")
     description = models.CharField(max_length=255)
+    logical_key = models.CharField(max_length=128, blank=True, null=True, db_index=True)
     total_amount = models.DecimalField(max_digits=12, decimal_places=2)
     installments_count = models.PositiveIntegerField(default=1)
     first_due_date = models.DateField()
