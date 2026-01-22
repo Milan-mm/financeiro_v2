@@ -47,9 +47,12 @@ const chartState = {
 };
 
 const initPrivacyToggle = () => {
+  if (window.__privacyToggleInitialized) return;
   const body = document.body;
   if (!body) return;
   const toggleButton = document.getElementById("privacyToggle");
+  if (!toggleButton) return;
+  window.__privacyToggleInitialized = true;
   const storedPreference = localStorage.getItem(PRIVACY_STORAGE_KEY);
 
   if (storedPreference === "true") {
@@ -57,17 +60,14 @@ const initPrivacyToggle = () => {
   }
 
   const syncButtonState = () => {
-    if (!toggleButton) return;
     const isActive = body.classList.contains("privacy-active");
     toggleButton.setAttribute("aria-pressed", isActive ? "true" : "false");
-    toggleButton.classList.toggle("btn-primary", isActive);
-    toggleButton.classList.toggle("btn-outline-secondary", !isActive);
-    toggleButton.innerHTML = `<i class="bi ${isActive ? "bi-eye-slash" : "bi-eye"}" aria-hidden="true"></i>`;
+    toggleButton.classList.toggle("active", isActive);
+    toggleButton.innerHTML = `<i class="bi ${isActive ? "bi-eye-slash" : "bi-eye"}" aria-hidden="true"></i><span>Privacidade</span>`;
   };
 
   syncButtonState();
 
-  if (!toggleButton) return;
   toggleButton.addEventListener("click", () => {
     body.classList.toggle("privacy-active");
     localStorage.setItem(PRIVACY_STORAGE_KEY, body.classList.contains("privacy-active"));

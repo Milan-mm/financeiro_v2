@@ -5,7 +5,7 @@
     <div class="card border-0 shadow-sm h-100">
       <div class="card-body">
         <p class="text-muted small mb-1">Receitas</p>
-        <h2 class="h4 fw-bold mb-0">R$ {{ total_income }}</h2>
+        <h2 class="h4 fw-bold mb-0 blur-sensitive">R$ {{ total_income }}</h2>
       </div>
     </div>
   </div>
@@ -13,7 +13,7 @@
     <div class="card border-0 shadow-sm h-100">
       <div class="card-body">
         <p class="text-muted small mb-1">Despesas</p>
-        <h2 class="h4 fw-bold mb-0">R$ {{ total_expense }}</h2>
+        <h2 class="h4 fw-bold mb-0 blur-sensitive">R$ {{ total_expense }}</h2>
       </div>
     </div>
   </div>
@@ -21,7 +21,7 @@
     <div class="card border-0 shadow-sm h-100">
       <div class="card-body">
         <p class="text-muted small mb-1">Saldo líquido</p>
-        <h2 class="h4 fw-bold mb-0">R$ {{ net }}</h2>
+        <h2 class="h4 fw-bold mb-0 blur-sensitive">R$ {{ net }}</h2>
       </div>
     </div>
   </div>
@@ -29,8 +29,8 @@
     <div class="card border-0 shadow-sm h-100">
       <div class="card-body">
         <p class="text-muted small mb-1">Recebíveis</p>
-        <p class="mb-0">Esperado: <strong>R$ {{ expected_total }}</strong></p>
-        <p class="mb-0">Recebido: <strong>R$ {{ received_total }}</strong></p>
+        <p class="mb-0">Esperado: <strong class="blur-sensitive">R$ {{ expected_total }}</strong></p>
+        <p class="mb-0">Recebido: <strong class="blur-sensitive">R$ {{ received_total }}</strong></p>
       </div>
     </div>
   </div>
@@ -75,7 +75,7 @@
               {% for row in expenses_breakdown %}
                 <li class="list-group-item d-flex justify-content-between align-items-center">
                   <span>{{ row.name }}</span>
-                  <span>R$ {{ row.total }} ({{ row.percent|floatformat:0 }}%)</span>
+                  <span class="blur-sensitive">R$ {{ row.total }} ({{ row.percent|floatformat:0 }}%)</span>
                 </li>
               {% empty %}
                 <li class="list-group-item text-muted">Sem despesas no mês.</li>
@@ -88,7 +88,7 @@
               {% for row in income_breakdown %}
                 <li class="list-group-item d-flex justify-content-between align-items-center">
                   <span>{{ row.name }}</span>
-                  <span>R$ {{ row.total }} ({{ row.percent|floatformat:0 }}%)</span>
+                  <span class="blur-sensitive">R$ {{ row.total }} ({{ row.percent|floatformat:0 }}%)</span>
                 </li>
               {% empty %}
                 <li class="list-group-item text-muted">Sem receitas no mês.</li>
@@ -132,7 +132,7 @@
                   <td>{{ entry.date|date:"d/m/Y" }}</td>
                   <td>{{ entry.description }}</td>
                   <td>{{ entry.get_kind_display }}</td>
-                  <td class="text-end">R$ {{ entry.amount }}</td>
+                  <td class="text-end blur-sensitive">R$ {{ entry.amount }}</td>
                 </tr>
               {% empty %}
                 <tr>
@@ -175,7 +175,7 @@
                   <td>{{ receivable.expected_date|date:"d/m/Y" }}</td>
                   <td>{{ receivable.description }}</td>
                   <td>{{ receivable.get_status_display }}</td>
-                  <td class="text-end">R$ {{ receivable.amount }}</td>
+                  <td class="text-end blur-sensitive">R$ {{ receivable.amount }}</td>
                 </tr>
               {% empty %}
                 <tr>
@@ -219,7 +219,7 @@
                   <td>{{ installment.group.description }}</td>
                   <td>{{ installment.number }}/{{ installment.group.installments_count }}</td>
                   <td>{{ installment.due_date|date:"d/m/Y" }}</td>
-                  <td class="text-end">R$ {{ installment.amount }}</td>
+                  <td class="text-end blur-sensitive">R$ {{ installment.amount }}</td>
                 </tr>
               {% empty %}
                 <tr>

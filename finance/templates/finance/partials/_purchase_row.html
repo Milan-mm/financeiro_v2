@@ -5,7 +5,7 @@
   <td>{{ group.card.name }}</td>
   <td>{{ group.installments_count }}</td>
   <td>{{ group.first_due_date|date:"d/m/Y" }}</td>
-  <td class="text-end">R$ {{ group.total_amount }}</td>
+  <td class="text-end blur-sensitive">R$ {{ group.total_amount }}</td>
   <td class="text-end">
     <a class="btn btn-outline-secondary btn-sm" href="{% url 'finance:purchase-detail' group.id %}">Ver parcelas</a>
     <button
