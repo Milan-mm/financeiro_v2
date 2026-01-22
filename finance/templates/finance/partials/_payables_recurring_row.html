@@ -2,7 +2,7 @@
   <td>{{ instance.due_date|date:"d/m/Y" }}</td>
   <td>{{ instance.rule.description }}</td>
   <td>{{ instance.rule.category.name|default:"Sem categoria" }}</td>
-  <td class="text-end">R$ {{ instance.amount }}</td>
+  <td class="text-end blur-sensitive">R$ {{ instance.amount }}</td>
   <td>
     {% if instance.is_paid %}
       <span class="badge text-bg-success">Pago</span>

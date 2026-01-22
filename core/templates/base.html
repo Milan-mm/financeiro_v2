@@ -103,6 +103,37 @@
       }
     </script>
 
+    <script>
+      (() => {
+        if (window.__privacyToggleInitialized) return;
+        const body = document.body;
+        const toggleButton = document.getElementById("privacyToggle");
+        if (!body || !toggleButton) return;
+        window.__privacyToggleInitialized = true;
+        const STORAGE_KEY = "financeiro:privacy-active";
+        const storedPreference = localStorage.getItem(STORAGE_KEY);
+
+        if (storedPreference === "true") {
+          body.classList.add("privacy-active");
+        }
+
+        const syncButtonState = () => {
+          const isActive = body.classList.contains("privacy-active");
+          toggleButton.setAttribute("aria-pressed", isActive ? "true" : "false");
+          toggleButton.classList.toggle("active", isActive);
+          toggleButton.innerHTML = `<i class="bi ${isActive ? "bi-eye-slash" : "bi-eye"}" aria-hidden="true"></i><span>Privacidade</span>`;
+        };
+
+        syncButtonState();
+
+        toggleButton.addEventListener("click", () => {
+          body.classList.toggle("privacy-active");
+          localStorage.setItem(STORAGE_KEY, body.classList.contains("privacy-active"));
+          syncButtonState();
+        });
+      })();
+    </script>
+
     {% block extra_scripts %}{% endblock %}
   </body>
 </html>

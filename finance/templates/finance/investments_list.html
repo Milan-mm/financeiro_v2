@@ -80,14 +80,14 @@
                   {% for row in account_overview %}
                     <tr>
                       <td>{{ row.account.name }}</td>
-                      <td class="text-end">
+                      <td class="text-end blur-sensitive">
                         {% if row.current_snapshot %}
                           R$ {{ row.current_snapshot.balance }}
                         {% else %}
                           —
                         {% endif %}
                       </td>
-                      <td class="text-end">
+                      <td class="text-end blur-sensitive">
                         {% if row.delta_abs is None %}
                           —
                         {% else %}

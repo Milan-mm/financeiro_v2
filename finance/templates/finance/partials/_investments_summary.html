@@ -50,8 +50,8 @@
           {% for delta in monthly_rows %}
             <tr>
               <td>{{ delta.month_name }}</td>
-              <td class="text-end">R$ {{ delta.total }}</td>
-              <td class="text-end">
+              <td class="text-end blur-sensitive">R$ {{ delta.total }}</td>
+              <td class="text-end blur-sensitive">
                 {% if delta.delta_abs is None %}
                   —
                 {% else %}
@@ -93,8 +93,8 @@
             <tr>
               <td>{{ row.account.name }}</td>
               <td>{{ row.snapshot.month }}/{{ row.snapshot.year }}</td>
-              <td class="text-end">R$ {{ row.snapshot.balance }}</td>
-              <td class="text-end">
+              <td class="text-end blur-sensitive">R$ {{ row.snapshot.balance }}</td>
+              <td class="text-end blur-sensitive">
                 {% if row.delta_abs is None %}
                   —
                 {% else %}

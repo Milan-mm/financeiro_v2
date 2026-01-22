@@ -3,7 +3,7 @@
     <div class="card border-0 shadow-sm h-100">
       <div class="card-body">
         <p class="text-uppercase text-muted small mb-1">Receitas</p>
-        <h2 class="h4 fw-bold mb-0">R$ {{ income_total }}</h2>
+        <h2 class="h4 fw-bold mb-0 blur-sensitive">R$ {{ income_total }}</h2>
       </div>
     </div>
   </div>
@@ -11,7 +11,7 @@
     <div class="card border-0 shadow-sm h-100">
       <div class="card-body">
         <p class="text-uppercase text-muted small mb-1">Despesas</p>
-        <h2 class="h4 fw-bold mb-0">R$ {{ expense_total }}</h2>
+        <h2 class="h4 fw-bold mb-0 blur-sensitive">R$ {{ expense_total }}</h2>
       </div>
     </div>
   </div>
@@ -19,7 +19,7 @@
     <div class="card border-0 shadow-sm h-100">
       <div class="card-body">
         <p class="text-uppercase text-muted small mb-1">Saldo</p>
-        <h2 class="h4 fw-bold mb-0">R$ {{ net_total }}</h2>
+        <h2 class="h4 fw-bold mb-0 blur-sensitive">R$ {{ net_total }}</h2>
       </div>
     </div>
   </div>
@@ -50,7 +50,7 @@
     <div class="row g-3">
       <div class="col-lg-6">
         <p class="text-muted small mb-1">Saldo inicial</p>
-        <p class="fw-semibold mb-0">
+        <p class="fw-semibold mb-0 blur-sensitive">
           {% if investment_start_total is None %}
             —
           {% else %}
@@ -60,7 +60,7 @@
       </div>
       <div class="col-lg-6">
         <p class="text-muted small mb-1">Saldo final</p>
-        <p class="fw-semibold mb-0">
+        <p class="fw-semibold mb-0 blur-sensitive">
           {% if investment_end_total is None %}
             —
           {% else %}
@@ -70,7 +70,7 @@
       </div>
       <div class="col-lg-6">
         <p class="text-muted small mb-1">Delta anual</p>
-        <p class="fw-semibold mb-0">
+        <p class="fw-semibold mb-0 blur-sensitive">
           {% if investment_delta_abs is None %}
             —
           {% else %}
@@ -118,7 +118,7 @@
           {% for row in income_by_account %}
             <tr>
               <td>{{ row.account__name|default:"Sem conta" }}</td>
-              <td class="text-end">R$ {{ row.total }}</td>
+              <td class="text-end blur-sensitive">R$ {{ row.total }}</td>
               <td class="text-end">—</td>
             </tr>
           {% empty %}
@@ -130,7 +130,7 @@
             <tr>
               <td>{{ row.account__name|default:"Sem conta" }}</td>
               <td class="text-end">—</td>
-              <td class="text-end">R$ {{ row.total }}</td>
+              <td class="text-end blur-sensitive">R$ {{ row.total }}</td>
             </tr>
           {% endfor %}
         </tbody>
@@ -154,7 +154,7 @@
           {% for row in purchase_groups %}
             <tr>
               <td>{{ row.group__description }}</td>
-              <td class="text-end">R$ {{ row.total }}</td>
+              <td class="text-end blur-sensitive">R$ {{ row.total }}</td>
             </tr>
           {% empty %}
             <tr>
@@ -184,8 +184,8 @@
           {% for delta in investment_monthly_rows %}
             <tr>
               <td>{{ delta.month_name }}</td>
-              <td class="text-end">R$ {{ delta.total }}</td>
-              <td class="text-end">
+              <td class="text-end blur-sensitive">R$ {{ delta.total }}</td>
+              <td class="text-end blur-sensitive">
                 {% if delta.delta_abs is None %}
                   —
                 {% else %}
