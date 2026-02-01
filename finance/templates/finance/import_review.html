@@ -38,11 +38,20 @@
                 <table class="table table-sm align-middle">
                   <thead class="table-light">
                     <tr>
+                      <th>
+                        <input
+                          class="form-check-input"
+                          type="checkbox"
+                          id="select-all-items"
+                          aria-label="Selecionar todos os itens"
+                        />
+                      </th>
                       <th>Data compra</th>
                       <th>Descrição</th>
                       <th>Valor</th>
                       <th>Parcela atual</th>
                       <th>Total</th>
+                      <th>Status</th>
                       <th>Categoria</th>
                       <th>Remover</th>
                     </tr>
@@ -52,11 +61,27 @@
                           {{ form.id }}
 
                       <tr>
+                        <td>
+                          <input
+                            class="form-check-input js-item-select"
+                            type="checkbox"
+                            name="selected_items"
+                            value="{{ form.instance.id }}"
+                            {% if form.dedup_status != "DUPLICATE_IN_FILE" %}checked{% endif %}
+                          />
+                        </td>
                         <td>{{ form.purchase_date }}</td>
                         <td>{{ form.description }}</td>
                         <td>{{ form.amount }}</td>
                         <td>{{ form.installments_current }}</td>
                         <td>{{ form.installments_total }}</td>
+                        <td>
+                          {% if form.dedup_status == "EXISTING_IN_DB" %}
+                            <span class="badge bg-primary">Reimportação</span>
+                          {% elif form.dedup_status == "DUPLICATE_IN_FILE" %}
+                            <span class="badge bg-warning text-dark">Duplicata no arquivo</span>
+                          {% endif %}
+                        </td>
                         <td>{{ form.category }}</td>
                         <td>{{ form.removed }}</td>
                       </tr>
@@ -72,4 +97,40 @@
       </div>
     </main>
   </div>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const selectAll = document.getElementById("select-all-items");
+      const itemCheckboxes = Array.from(
+        document.querySelectorAll(".js-item-select")
+      );
+
+      const updateSelectAllState = () => {
+        const total = itemCheckboxes.length;
+        const checkedCount = itemCheckboxes.filter((item) => item.checked).length;
+        if (total === 0) {
+          selectAll.checked = false;
+          selectAll.indeterminate = false;
+          return;
+        }
+        selectAll.checked = checkedCount === total;
+        selectAll.indeterminate = checkedCount > 0 && checkedCount < total;
+      };
+
+      if (selectAll) {
+        selectAll.addEventListener("change", (event) => {
+          const isChecked = event.target.checked;
+          itemCheckboxes.forEach((item) => {
+            item.checked = isChecked;
+          });
+          updateSelectAllState();
+        });
+      }
+
+      itemCheckboxes.forEach((item) => {
+        item.addEventListener("change", updateSelectAllState);
+      });
+
+      updateSelectAllState();
+    });
+  </script>
 {% endblock %}
