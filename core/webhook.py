@@ -10,7 +10,7 @@ from django.http import HttpResponse
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from twilio.twiml.messaging_response import MessagingResponse
-from core.models import QuickExpense
+from core.models import QuickExpense, CardStatementInitialBalance
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +32,73 @@ def get_previous_month_year():
     if today.month == 1:
         return (today.year - 1, 12)
     return (today.year, today.month - 1)
+
+
+def get_pending_expense_key(phone_number):
+    """Chave de cache para despesa pendente (aguardando saldo inicial)"""
+    return f"pending_expense_{phone_number}"
+
+
+def get_awaiting_balance_key(phone_number):
+    """Chave de cache para sinalizar que estamos aguardando saldo inicial"""
+    return f"awaiting_initial_balance_{phone_number}"
+
+
+def has_month_initial_balance(user, year, month):
+    """Verifica se existe saldo inicial para o mês/usuário"""
+    return CardStatementInitialBalance.objects.filter(
+        user_id=user.id, year=year, month=month
+    ).exists()
+
+
+def set_pending_expense(phone_number, valor, descricao):
+    """Armazena uma despesa pendente aguardando saldo inicial"""
+    cache_key = get_pending_expense_key(phone_number)
+    cache.set(cache_key, {
+        'valor': str(valor),
+        'descricao': descricao,
+        'timestamp': datetime.now().isoformat()
+    }, timeout=3600)  # 1 hora de timeout
+
+
+def get_pending_expense(phone_number):
+    """Recupera a despesa pendente"""
+    return cache.get(get_pending_expense_key(phone_number))
+
+
+def clear_pending_expense(phone_number):
+    """Remove a despesa pendente"""
+    cache.delete(get_pending_expense_key(phone_number))
+
+
+def set_awaiting_initial_balance(phone_number):
+    """Marca que estamos aguardando saldo inicial"""
+    cache.set(get_awaiting_balance_key(phone_number), True, timeout=3600)
+
+
+def is_awaiting_initial_balance(phone_number):
+    """Verifica se estamos aguardando saldo inicial"""
+    return cache.get(get_awaiting_balance_key(phone_number), False)
+
+
+def clear_awaiting_balance(phone_number):
+    """Limpa a flag de aguardando saldo inicial"""
+    cache.delete(get_awaiting_balance_key(phone_number))
+
+
+def parse_initial_balance(message):
+    """
+    Parseia uma mensagem como saldo inicial (apenas um valor decimal).
+    Retorna o Decimal ou None se inválido.
+    """
+    valor_str = message.strip().replace(',', '.')
+    try:
+        valor = Decimal(valor_str)
+        if valor < 0:
+            return None
+        return valor
+    except (InvalidOperation, ValueError):
+        return None
 
 
 def parse_expense_message(message):
@@ -162,15 +229,72 @@ def handle_menu_command(phone_number):
 
 
 def handle_add_expense(user, phone_number, message):
-    """Processa comando de adicionar despesa e persiste no DB"""
+    """Processa comando de adicionar despesa.
+    
+    Se for o primeiro lançamento do mês, pede o saldo inicial da fatura.
+    Caso contrário, registra a despesa normalmente.
+    """
+    year, month = get_current_month_year()
+    
+    # Verifica se existe saldo inicial para este mês
+    has_balance = has_month_initial_balance(user, year, month)
+    
+    if not has_balance:
+        # Primeiro lançamento do mês: pede saldo inicial
+        valor, descricao = parse_expense_message(message)
+        if valor is None or descricao is None:
+            return "⚠️ Formato inválido. Use: 15.50 - Almoço"
+        
+        # Armazena a despesa pendente
+        set_pending_expense(phone_number, valor, descricao)
+        set_awaiting_initial_balance(phone_number)
+        
+        return "Este é o primeiro lançamento do mês. Para começar, informe o saldo inicial da sua fatura:"
+    
+    # Saldo inicial já foi informado, registra a despesa normalmente
     valor, descricao = parse_expense_message(message)
-
     if valor is None or descricao is None:
         return "⚠️ Formato inválido. Use: 15.50 - Almoço"
-
-    # Persiste no banco usando o usuário fornecido
+    
     QuickExpense.objects.create(user=user, descricao=descricao, valor=valor)
     return f"✅ Lançamento adicionado: R$ {valor:.2f} - {descricao}"
+
+
+def handle_set_initial_balance(user, phone_number, message):
+    """Processa o saldo inicial informado pelo usuário.
+    
+    Cria o CardStatementInitialBalance e registra a despesa pendente.
+    """
+    # Parse do saldo inicial
+    saldo_inicial = parse_initial_balance(message)
+    if saldo_inicial is None:
+        return "⚠️ Valor inválido. Use um número (ex: 540.30)"
+    
+    # Recupera a despesa pendente
+    pending = get_pending_expense(phone_number)
+    if not pending:
+        return "Nenhuma despesa pendente encontrada."
+    
+    year, month = get_current_month_year()
+    
+    # Cria/atualiza o saldo inicial
+    CardStatementInitialBalance.objects.update_or_create(
+        user_id=user.id,
+        year=year,
+        month=month,
+        defaults={'saldo_inicial': saldo_inicial}
+    )
+    
+    # Registra a despesa pendente
+    valor = Decimal(pending['valor'])
+    descricao = pending['descricao']
+    QuickExpense.objects.create(user=user, descricao=descricao, valor=valor)
+    
+    # Limpa estados
+    clear_pending_expense(phone_number)
+    clear_awaiting_balance(phone_number)
+    
+    return f"✅ Saldo inicial de R$ {saldo_inicial:.2f} definido. Lançamento 'R$ {valor:.2f} - {descricao}' adicionado."
 
 
 def handle_view_statement(user, phone_number, statement_type):
@@ -252,7 +376,10 @@ def twilio_webhook(request):
     # 3. Processamento dos comandos
     incoming_lower = incoming_msg.lower()
 
-    if incoming_lower == "menu":
+    # Verifica se estamos aguardando um saldo inicial
+    if is_awaiting_initial_balance(phone_number):
+        reply = handle_set_initial_balance(primary_user, phone_number, incoming_msg)
+    elif incoming_lower == "menu":
         reply = handle_menu_command(phone_number)
 
     elif incoming_lower in ["extrato atual", "extrato anterior"]:

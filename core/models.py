@@ -72,3 +72,24 @@ class QuickExpense(models.Model):
 
     def __str__(self):
         return f"{self.data} - {self.descricao} - R$ {self.valor}"
+
+
+class CardStatementInitialBalance(models.Model):
+    """
+    Armazena o saldo inicial (da fatura de cartão anterior) para cada mês/usuário.
+    Usado para rastrear o saldo total da fatura ao longo do mês.
+    """
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    year = models.IntegerField()
+    month = models.IntegerField()
+    saldo_inicial = models.DecimalField(max_digits=10, decimal_places=2)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["user", "year", "month"], name="unique_card_statement_balance")
+        ]
+        ordering = ["-year", "-month"]
+
+    def __str__(self):
+        return f"{self.user} - {self.year}-{self.month:02d}: R$ {self.saldo_inicial}"
