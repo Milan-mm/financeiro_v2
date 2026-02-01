@@ -48,6 +48,7 @@ from .models import (
 from .services import (
     generate_installments_for_group,
     generate_installments_from_statement,
+    generate_future_installments_from_group,
     generate_recurring_instances,
     installment_plan,
     pay_recurring_instance,
@@ -1192,7 +1193,7 @@ def import_review(request, pk):
     print("[IMPORT_REVIEW] statement:", batch.statement_month, batch.statement_year)
     print("[IMPORT_REVIEW] items:", batch.items.count())
 
-    items = batch.items.all()
+    items = list(batch.items.all())
     logical_keys = [
         build_installment_logical_key(
             item.description,
@@ -1413,6 +1414,12 @@ def import_confirm(request, pk):
 
             print("[IMPORT_CONFIRM] depois generate_installments_from_statement")
             created_installments_count += len(created_installments)
+
+            future_installments = generate_future_installments_from_group(
+                group,
+                current_installment=current_installment,
+            )
+            created_installments_count += len(future_installments)
 
         print("[IMPORT_CONFIRM] FIM LOOP")
 
