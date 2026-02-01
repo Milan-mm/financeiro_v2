@@ -173,21 +173,36 @@ def handle_add_expense(phone_number, message):
 
 
 def handle_view_statement(phone_number, statement_type):
-    """Processa comando de consultar extrato"""
+    """Processa comando de consultar extrato.
+
+    Agora lê do modelo QuickExpense (atribuindo consultas ao usuário
+    definido em `settings.FINANCE_BOT_USER_ID`) para o mês/ano correspondente.
+    """
     if statement_type.lower() == "extrato atual":
-        month_year = get_current_month_year()
+        year, month = get_current_month_year()
         month_label = "Mês Atual"
     elif statement_type.lower() == "extrato anterior":
-        month_year = get_previous_month_year()
+        year, month = get_previous_month_year()
         month_label = "Mês Anterior"
     else:
         return None
-    
-    cache_key = get_user_cache_key(phone_number)
-    all_expenses = cache.get(cache_key, {})
-    month_key = f"{month_year[0]}-{month_year[1]:02d}"
-    expenses = all_expenses.get(month_key, [])
-    
+
+    try:
+        user_id = int(settings.FINANCE_BOT_USER_ID)
+    except Exception:
+        user_id = settings.FINANCE_BOT_USER_ID
+
+    qs = QuickExpense.objects.filter(user_id=user_id, data__year=year, data__month=month).order_by('data', 'id')
+
+    # Converte queryset para lista compatível com format_expense_list
+    expenses = []
+    for q in qs:
+        expenses.append({
+            'valor': str(q.valor),
+            'descricao': q.descricao,
+            'timestamp': q.data.isoformat(),
+        })
+
     return format_expense_list(expenses, month_label)
 
 
