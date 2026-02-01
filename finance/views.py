@@ -1192,7 +1192,7 @@ def import_review(request, pk):
     print("[IMPORT_REVIEW] statement:", batch.statement_month, batch.statement_year)
     print("[IMPORT_REVIEW] items:", batch.items.count())
 
-    items = list(batch.items.all())
+    items = batch.items.all()
     logical_keys = [
         build_installment_logical_key(
             item.description,
