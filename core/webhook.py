@@ -161,22 +161,23 @@ def handle_menu_command(phone_number):
     return menu_text
 
 
-def handle_add_expense(phone_number, message):
-    """Processa comando de adicionar despesa"""
+def handle_add_expense(user, phone_number, message):
+    """Processa comando de adicionar despesa e persiste no DB"""
     valor, descricao = parse_expense_message(message)
-    
+
     if valor is None or descricao is None:
         return "⚠️ Formato inválido. Use: 15.50 - Almoço"
-    
-    add_cached_expense(phone_number, valor, descricao)
+
+    # Persiste no banco usando o usuário fornecido
+    QuickExpense.objects.create(user=user, descricao=descricao, valor=valor)
     return f"✅ Lançamento adicionado: R$ {valor:.2f} - {descricao}"
 
 
-def handle_view_statement(phone_number, statement_type):
+def handle_view_statement(user, phone_number, statement_type):
     """Processa comando de consultar extrato.
 
     Agora lê do modelo QuickExpense (atribuindo consultas ao usuário
-    definido em `settings.FINANCE_BOT_USER_ID`) para o mês/ano correspondente.
+    fornecido) para o mês/ano correspondente.
     """
     if statement_type.lower() == "extrato atual":
         year, month = get_current_month_year()
@@ -187,10 +188,7 @@ def handle_view_statement(phone_number, statement_type):
     else:
         return None
 
-    try:
-        user_id = int(settings.FINANCE_BOT_USER_ID)
-    except Exception:
-        user_id = settings.FINANCE_BOT_USER_ID
+    user_id = getattr(user, 'id', settings.FINANCE_BOT_USER_ID)
 
     qs = QuickExpense.objects.filter(user_id=user_id, data__year=year, data__month=month).order_by('data', 'id')
 
@@ -206,22 +204,27 @@ def handle_view_statement(phone_number, statement_type):
     return format_expense_list(expenses, month_label)
 
 
-def handle_delete_last(phone_number):
-    """Processa comando de excluir último lançamento"""
-    removed = remove_last_cached_expense(phone_number)
-    
-    if removed is None:
+def handle_delete_last(user, phone_number):
+    """Processa comando de excluir último lançamento (persistido no DB)"""
+    year, month = get_current_month_year()
+    qs = QuickExpense.objects.filter(user_id=user.id, data__year=year, data__month=month).order_by('-data', '-id')
+
+    last = qs.first()
+    if not last:
         return "Nenhum lançamento para excluir."
-    
-    valor = Decimal(removed['valor'])
-    descricao = removed['descricao']
+
+    valor = last.valor
+    descricao = last.descricao
+    last.delete()
     return f"🗑️ Último lançamento ('R$ {valor:.2f} - {descricao}') foi removido."
 
 
-def handle_clear_month(phone_number):
-    """Processa comando de limpar mês"""
-    clear_month_cached_expenses(phone_number)
-    return "✔️ Todos os lançamentos do mês atual foram zerados."
+def handle_clear_month(user, phone_number):
+    """Processa comando de limpar mês (apaga lançamentos no DB)"""
+    year, month = get_current_month_year()
+    qs = QuickExpense.objects.filter(user_id=user.id, data__year=year, data__month=month)
+    deleted_count, _ = qs.delete()
+    return "✔️ Todos os lançamentos do mês atual foram zerados." if deleted_count else "Nenhum lançamento para zerar."
 
 
 @csrf_exempt
@@ -253,17 +256,17 @@ def twilio_webhook(request):
         reply = handle_menu_command(phone_number)
 
     elif incoming_lower in ["extrato atual", "extrato anterior"]:
-        reply = handle_view_statement(phone_number, incoming_msg)
+        reply = handle_view_statement(primary_user, phone_number, incoming_msg)
 
     elif incoming_lower == "excluir":
-        reply = handle_delete_last(phone_number)
+        reply = handle_delete_last(primary_user, phone_number)
 
     elif incoming_lower == "zerar":
-        reply = handle_clear_month(phone_number)
+        reply = handle_clear_month(primary_user, phone_number)
 
     else:
         # Tenta processar como um lançamento de despesa
-        reply = handle_add_expense(phone_number, incoming_msg)
+        reply = handle_add_expense(primary_user, phone_number, incoming_msg)
 
     if reply:
         resp.message(reply)
