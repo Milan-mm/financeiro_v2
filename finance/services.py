@@ -176,6 +176,19 @@ def generate_future_installments_from_group(
         )
         if was_created:
             print(f"    -> CREATED")
+            # create a LedgerEntry for this installment so it appears in entries/dashboard
+            entry_description = f"{group.description} {idx}/{group.installments_count}"
+            entry = LedgerEntry.objects.create(
+                household=group.household,
+                date=due_date,
+                kind=LedgerEntry.Kind.EXPENSE,
+                amount=amount,
+                description=entry_description,
+                category=group.category,
+                created_by=group.created_by,
+            )
+            installment.ledger_entry = entry
+            installment.save(update_fields=["ledger_entry"])
             created.append(installment)
         else:
             print(f"    -> ALREADY EXISTS")
