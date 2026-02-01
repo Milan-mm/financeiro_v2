@@ -271,10 +271,17 @@ class ImportItemForm(forms.ModelForm):
         self.fields["purchase_date"].input_formats = ["%Y-%m-%d"]
 
         if household is not None:
-            self.fields["category"].queryset = Category.objects.filter(
+            categories = Category.objects.filter(
                 household=household,
                 is_active=True,
             )
+            self.fields["category"].queryset = categories
+            if not self.instance.category_id:
+                default_category = categories.filter(
+                    name__iexact="Despesas pessoais"
+                ).first()
+                if default_category:
+                    self.fields["category"].initial = default_category.id
 
 
 class InvestmentAccountForm(HouseholdScopedForm):
