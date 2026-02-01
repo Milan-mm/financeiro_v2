@@ -87,3 +87,4 @@ htmlcov/
 # Docker (se usar depois)
 # ==================================================
 docker-compose.override.yml
+/test_twilio.py
