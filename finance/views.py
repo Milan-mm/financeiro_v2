@@ -5,7 +5,7 @@ from decimal import Decimal
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import models, transaction
-from django.db.models import Sum
+from django.db.models import Sum, Q
 from django.db.models.functions import Coalesce
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -227,15 +227,18 @@ def _category_breakdown(queryset, total):
 
 
 def _payables_context(request, year, month):
+    month_start = date(year, month, 1)
+    month_end = date(year, month, monthrange(year, month)[1])
+
     recurring_instances = RecurringInstance.objects.filter(
         household=request.household,
         year=year,
         month=month,
     ).select_related("rule", "rule__category", "rule__account")
+
     installments = Installment.objects.filter(
         household=request.household,
-        statement_year=year,
-        statement_month=month,
+        due_date__range=(month_start, month_end),
     ).select_related("group", "group__card", "group__category")
 
     decimal_output = models.DecimalField(max_digits=12, decimal_places=2)
