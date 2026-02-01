@@ -1,0 +1,200 @@
+Diretório: .
+  - .gitignore
+  - main.py
+  - manage.py
+  - mapeamento_em_txt.py
+  - MVP.txt
+  - package.json
+  - Procfile
+  - README.md
+  - requirements.txt
+  - tailwind.config.js
+  - utils_ai.py
+
+Diretório: core
+  - admin.py
+  - apps.py
+  - forms.py
+  - households.py
+  - installments.py
+  - middleware.py
+  - models.py
+  - tests.py
+  - urls.py
+  - utils_ai.py
+  - utils_webhook.py
+  - views.py
+  - webhook.py
+  - __init__.py
+
+Diretório: core\management
+  - __init__.py
+
+Diretório: core\management\commands
+  - bootstrap_household.py
+  - cleanup_system_logs.py
+  - export_household_data.py
+  - generate_recurring_instances.py
+  - import_household_data.py
+  - inspect_statement_import_effect.py
+  - inspect_statement_parse.py
+  - report_unused_files.py
+  - __init__.py
+
+Diretório: core\migrations
+  - 0001_initial.py
+  - 0002_cardpurchase_tipo_pagamento_and_more.py
+  - 0003_systemlog.py
+  - 0004_quickexpense.py
+  - 0005_household.py
+  - __init__.py
+
+Diretório: core\static
+  - __init__.py
+
+Diretório: core\static\core
+  - app.js
+  - main.js
+  - styles.css
+  - __init__.py
+
+Diretório: core\static\core\modules
+  - api.js
+  - charts.js
+  - importer.js
+  - logger.js
+  - state.js
+  - tables.js
+  - ui.js
+  - utils.js
+
+Diretório: core\templates
+  - base.html
+
+Diretório: core\templates\core
+  - cards.html
+  - dashboard.html
+  - expenses.html
+  - household_missing.html
+  - login.html
+  - settings.html
+  - system_logs.html
+
+Diretório: core\templates\core\partials
+  - _modals.html
+  - _toasts.html
+
+Diretório: core\templates\partials
+  - messages.html
+  - modal.html
+  - nav.html
+  - _system_logs_table.html
+
+Diretório: core\tests
+  - test_import_save.py
+  - test_installments.py
+  - test_system_logs_auth.py
+
+Diretório: finance
+  - admin.py
+  - apps.py
+  - billing.py
+  - forms.py
+  - models.py
+  - services.py
+  - services_investments.py
+  - statement_importer.py
+  - urls.py
+  - views.py
+  - __init__.py
+
+Diretório: finance\migrations
+  - 0001_initial.py
+  - 0002_card_cardpurchasegroup_importbatch_importitem_and_more.py
+  - 0003_investmentaccount_investmentsnapshot_and_more.py
+  - 0004_rename_installments_count_importitem_installments_total_and_more.py
+  - __init__.py
+
+Diretório: finance\templates
+
+Diretório: finance\templates\finance
+  - accounts_list.html
+  - annual_stats.html
+  - cards_list.html
+  - card_statement.html
+  - categories_list.html
+  - dashboard.html
+  - entries_list.html
+  - import_review.html
+  - import_start.html
+  - investments_list.html
+  - purchases_list.html
+  - purchase_detail.html
+  - receivables_list.html
+  - recurring_list.html
+
+Diretório: finance\templates\finance\partials
+  - _account_form.html
+  - _account_row.html
+  - _account_table.html
+  - _annual_stats_summary.html
+  - _card_form.html
+  - _card_row.html
+  - _card_table.html
+  - _category_form.html
+  - _category_row.html
+  - _category_table.html
+  - _dashboard_content.html
+  - _entry_form.html
+  - _entry_row.html
+  - _entry_table.html
+  - _investments_summary.html
+  - _investment_account_form.html
+  - _investment_account_table.html
+  - _investment_snapshot_form.html
+  - _purchase_form.html
+  - _purchase_row.html
+  - _purchase_table.html
+  - _receivable_form.html
+  - _receivable_row.html
+  - _receivable_table.html
+  - _recurring_form.html
+  - _recurring_instances_row.html
+  - _recurring_instances_table.html
+  - _recurring_instance_value_form.html
+  - _recurring_row.html
+  - _recurring_table.html
+
+Diretório: finance\tests
+  - test_dashboard.py
+  - test_household_scoping.py
+  - test_investments.py
+  - test_receivables.py
+  - test_recurring_installments_import.py
+  - test_statement_importer.py
+  - __init__.py
+
+Diretório: financeirov2
+  - asgi.py
+  - settings.py
+  - urls.py
+  - wsgi.py
+  - __init__.py
+
+Diretório: reports
+  - unused_files_report.md
+
+Diretório: static
+
+Diretório: static\css
+  - tailwind.css
+
+Diretório: static\js
+  - annual_stats_charts.js
+  - dashboard_charts.js
+  - investments_charts.js
+  - logs_badge.js
+
+Diretório: static\src
+  - tailwind.css
+

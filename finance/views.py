@@ -1193,7 +1193,8 @@ def import_review(request, pk):
     print("[IMPORT_REVIEW] statement:", batch.statement_month, batch.statement_year)
     print("[IMPORT_REVIEW] items:", batch.items.count())
 
-    items = list(batch.items.all())
+    items_queryset = batch.items.all()
+    items = list(items_queryset)
     logical_keys = [
         build_installment_logical_key(
             item.description,
@@ -1227,7 +1228,7 @@ def import_review(request, pk):
         item_statuses[item.id] = status
 
     formset = ImportReviewFormSet(
-        queryset=items,
+        queryset=items_queryset,
         form_kwargs={"household": request.household},
     )
     for form in formset:
