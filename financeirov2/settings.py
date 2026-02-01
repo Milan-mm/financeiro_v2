@@ -47,6 +47,24 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "dashboard"
 
+# ------------------------------------------------------------------------------
+# Twilio / Finance bot configuration
+# - `TWILIO_ALLOWED_NUMBERS` should contain international phone numbers
+#   (no 'whatsapp:' prefix) allowed to register expenses via the Twilio bot.
+# - `FINANCE_BOT_USER_ID` is the numeric id of the user that will be used
+#   as owner/creator for expenses created by the bot.
+# You can override these in environment-specific .env files if needed.
+TWILIO_ALLOWED_NUMBERS = os.getenv("TWILIO_ALLOWED_NUMBERS")
+if TWILIO_ALLOWED_NUMBERS:
+    TWILIO_ALLOWED_NUMBERS = [n.strip() for n in TWILIO_ALLOWED_NUMBERS.split(",") if n.strip()]
+else:
+    TWILIO_ALLOWED_NUMBERS = [
+        "+5511999998888",
+        "+5521988887777",
+    ]
+
+FINANCE_BOT_USER_ID = int(os.getenv("FINANCE_BOT_USER_ID") or 1)
+
 # ==============================================================================
 # DATABASE
 # ==============================================================================
