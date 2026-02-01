@@ -11,7 +11,7 @@ from .billing import get_statement_window
 HEADER_RE = re.compile(r"Compra\s+Data\s+Descrição", re.IGNORECASE)
 DATE_RE = re.compile(r"\b(\d{2})/(\d{2})\b")
 AMOUNT_RE = re.compile(r"(-?\d{1,3}(?:\.\d{3})*,\d{2})")
-INSTALLMENT_RE = re.compile(r"\b(\d{2})/(\d{2})\b")
+INSTALLMENT_RE = re.compile(r"\b(\d{1,2})/(\d{1,2})\b")
 
 
 class PurchaseFlag:

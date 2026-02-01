@@ -48,6 +48,7 @@ from .models import (
 from .services import (
     generate_installments_for_group,
     generate_installments_from_statement,
+    generate_future_installments_from_group,
     generate_recurring_instances,
     installment_plan,
     pay_recurring_instance,
@@ -900,9 +901,12 @@ def payables_generate(request):
         print(f"instances created for rule {rule.id}: {len(created)}")
         created_count += len(created)
 
-    print("[PAYABLES_GENERATE] TOTAL CREATED:", created_count)
-
-    messages.success(request, f"{created_count} instância(s) gerada(s).")
+    total_created = created_count
+    print("[PAYABLES_GENERATE] TOTAL CREATED:", total_created)
+    messages.success(
+        request,
+        f"{total_created} instância(s) gerada(s).",
+    )
 
     context = _payables_context(request, year, month)
     return _render_partial(
@@ -1186,10 +1190,45 @@ def import_review(request, pk):
     print("[IMPORT_REVIEW] statement:", batch.statement_month, batch.statement_year)
     print("[IMPORT_REVIEW] items:", batch.items.count())
 
+    items = list(batch.items.all())
+    logical_keys = [
+        build_installment_logical_key(
+            item.description,
+            item.purchase_date,
+            item.amount,
+            item.installments_total,
+        )
+        for item in items
+    ]
+    existing_groups = CardPurchaseGroup.objects.filter(
+        household=request.household,
+        logical_key__in=logical_keys,
+    )
+    if batch.card:
+        existing_groups = existing_groups.filter(card=batch.card)
+
+    existing_logical_keys = set(
+        existing_groups.values_list("logical_key", flat=True)
+    )
+    seen_logical_keys: set[str] = set()
+    item_statuses: dict[int, str] = {}
+
+    for item, logical_key in zip(items, logical_keys):
+        if logical_key in existing_logical_keys:
+            status = "EXISTING_IN_DB"
+        elif logical_key in seen_logical_keys:
+            status = "DUPLICATE_IN_FILE"
+        else:
+            status = "NEW"
+        seen_logical_keys.add(logical_key)
+        item_statuses[item.id] = status
+
     formset = ImportReviewFormSet(
-        queryset=batch.items.all(),
+        queryset=items,
         form_kwargs={"household": request.household},
     )
+    for form in formset:
+        form.dedup_status = item_statuses.get(form.instance.id, "NEW")
 
     card_form = ImportPasteForm(
         household=request.household,
@@ -1229,6 +1268,8 @@ def import_confirm(request, pk):
         queryset=batch.items.all(),
         form_kwargs={"household": request.household},
     )
+    selected_ids_raw = request.POST.getlist("selected_items")
+    selected_ids = {int(item_id) for item_id in selected_ids_raw if item_id}
 
     card_id = request.POST.get("card")
     if card_id:
@@ -1290,7 +1331,7 @@ def import_confirm(request, pk):
 
             print("[IMPORT_CONFIRM] item salvo:", item.id)
 
-            if item.removed:
+            if item.removed or item.id not in selected_ids:
                 print("[IMPORT_CONFIRM] item removido:", item.id)
                 continue
 
@@ -1370,6 +1411,12 @@ def import_confirm(request, pk):
 
             print("[IMPORT_CONFIRM] depois generate_installments_from_statement")
             created_installments_count += len(created_installments)
+
+            future_installments = generate_future_installments_from_group(
+                group,
+                current_installment=current_installment,
+            )
+            created_installments_count += len(future_installments)
 
         print("[IMPORT_CONFIRM] FIM LOOP")
 

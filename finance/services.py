@@ -129,6 +129,35 @@ def generate_installments_from_statement(
     return created
 
 
+def generate_future_installments_from_group(
+    group: CardPurchaseGroup,
+    current_installment: int,
+) -> list[Installment]:
+    plan = installment_plan(group.total_amount, group.installments_count, group.first_due_date)
+    created = []
+    start_number = min(max(1, current_installment + 1), group.installments_count + 1)
+    for idx, (amount, due_date) in enumerate(
+        zip(plan.amounts, plan.due_dates),
+        start=1,
+    ):
+        if idx < start_number:
+            continue
+        installment, was_created = Installment.objects.get_or_create(
+            household=group.household,
+            group=group,
+            number=idx,
+            defaults={
+                "due_date": due_date,
+                "statement_year": due_date.year,
+                "statement_month": due_date.month,
+                "amount": amount,
+            },
+        )
+        if was_created:
+            created.append(installment)
+    return created
+
+
 def regenerate_future_installments(group: CardPurchaseGroup, from_date: date) -> list[Installment]:
     with transaction.atomic():
         future_installments = group.installments.filter(due_date__gte=from_date)
@@ -200,6 +229,7 @@ def generate_recurring_instances(rule: RecurringRule, months_ahead: int) -> list
 
     print("[RECURRING_GENERATE] created:", len(instances))
     return instances
+
 
 def pay_recurring_instance(instance: RecurringInstance) -> RecurringInstance:
     with transaction.atomic():
