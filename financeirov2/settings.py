@@ -59,11 +59,10 @@ if TWILIO_ALLOWED_NUMBERS:
     TWILIO_ALLOWED_NUMBERS = [n.strip() for n in TWILIO_ALLOWED_NUMBERS.split(",") if n.strip()]
 else:
     TWILIO_ALLOWED_NUMBERS = [
-        "+5516992772998",
-        "+5516992935278",
+        "+5516999999999",
     ]
 
-FINANCE_BOT_USER_ID = int(os.getenv("FINANCE_BOT_USER_ID") or 1)
+FINANCE_BOT_USER_ID = int(os.getenv("FINANCE_BOT_USER_ID") or 3)
 
 # ==============================================================================
 # DATABASE
