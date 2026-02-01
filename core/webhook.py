@@ -300,8 +300,7 @@ def handle_set_initial_balance(user, phone_number, message):
 def handle_view_statement(user, phone_number, statement_type):
     """Processa comando de consultar extrato.
 
-    Agora lê do modelo QuickExpense (atribuindo consultas ao usuário
-    fornecido) para o mês/ano correspondente.
+    Busca o saldo inicial e as despesas do mês, exibindo o total da fatura.
     """
     if statement_type.lower() == "extrato atual":
         year, month = get_current_month_year()
@@ -314,18 +313,50 @@ def handle_view_statement(user, phone_number, statement_type):
 
     user_id = getattr(user, 'id', settings.FINANCE_BOT_USER_ID)
 
+    # Busca saldo inicial
+    saldo_obj = CardStatementInitialBalance.objects.filter(
+        user_id=user_id, year=year, month=month
+    ).first()
+    saldo_inicial = saldo_obj.saldo_inicial if saldo_obj else None
+
+    # Busca despesas do mês
     qs = QuickExpense.objects.filter(user_id=user_id, data__year=year, data__month=month).order_by('data', 'id')
 
-    # Converte queryset para lista compatível com format_expense_list
+    # Converte queryset para lista
     expenses = []
+    total_despesas = Decimal('0')
     for q in qs:
+        valor = q.valor
         expenses.append({
-            'valor': str(q.valor),
+            'valor': str(valor),
             'descricao': q.descricao,
             'timestamp': q.data.isoformat(),
         })
+        total_despesas += valor
 
-    return format_expense_list(expenses, month_label)
+    # Formata a resposta
+    if saldo_inicial is None and not expenses:
+        return f"Nenhum lançamento para o {month_label.lower()}."
+    
+    lines = [f"📝 Extrato {month_label}:"]
+    
+    if saldo_inicial is not None:
+        lines.append(f"Saldo Inicial: R$ {saldo_inicial:.2f}")
+    
+    if expenses:
+        for expense in expenses:
+            valor = Decimal(expense['valor'])
+            descricao = expense['descricao']
+            lines.append(f"- R$ {valor:.2f} - {descricao}")
+        lines.append(f"\nTotal de Despesas: R$ {total_despesas:.2f}")
+    
+    if saldo_inicial is not None and expenses:
+        total_fatura = saldo_inicial + total_despesas
+        lines.append(f"Total da Fatura: R$ {total_fatura:.2f}")
+    elif saldo_inicial is not None:
+        lines.append(f"\nTotal da Fatura: R$ {saldo_inicial:.2f}")
+
+    return "\n".join(lines)
 
 
 def handle_delete_last(user, phone_number):
