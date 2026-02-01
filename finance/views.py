@@ -48,6 +48,7 @@ from .models import (
 from .services import (
     generate_installments_for_group,
     generate_installments_from_statement,
+    generate_future_installments_for_household,
     generate_recurring_instances,
     installment_plan,
     pay_recurring_instance,
