@@ -30,7 +30,7 @@
                     <tr>
                       <td>{{ inst.number }}/{{ group.installments_count }}</td>
                       <td>{{ inst.due_date|date:"d/m/Y" }}</td>
-                      <td class="text-end">R$ {{ inst.amount }}</td>
+                      <td class="text-end blur-sensitive">R$ {{ inst.amount }}</td>
                     </tr>
                   {% empty %}
                     <tr>

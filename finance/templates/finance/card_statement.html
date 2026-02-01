@@ -42,7 +42,7 @@
             <div class="card border-0 shadow-sm h-100">
               <div class="card-body">
                 <p class="text-uppercase text-muted small mb-1">Total da fatura</p>
-                <h2 class="h4 fw-bold mb-0">R$ {{ statement_total }}</h2>
+                <h2 class="h4 fw-bold mb-0 blur-sensitive">R$ {{ statement_total }}</h2>
               </div>
             </div>
           </div>
@@ -54,7 +54,7 @@
                   {% for row in category_breakdown %}
                     <li class="d-flex justify-content-between">
                       <span>{{ row.group__category__name|default:"Sem categoria" }}</span>
-                      <span>R$ {{ row.total }}</span>
+                      <span class="blur-sensitive">R$ {{ row.total }}</span>
                     </li>
                   {% empty %}
                     <li class="text-muted">Nenhuma categoria registrada.</li>
@@ -82,7 +82,7 @@
                     <tr>
                       <td>{{ installment.group.description }}</td>
                       <td>{{ installment.number }}/{{ installment.group.installments_count }}</td>
-                      <td class="text-end">R$ {{ installment.amount }}</td>
+                      <td class="text-end blur-sensitive">R$ {{ installment.amount }}</td>
                     </tr>
                   {% empty %}
                     <tr>

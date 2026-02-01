@@ -1,7 +1,7 @@
 <tr id="recurring-instance-{{ instance.id }}">
   <td>{{ instance.rule.description }}</td>
   <td>{{ instance.due_date|date:"d/m/Y" }}</td>
-  <td class="text-end">R$ {{ instance.amount }}</td>
+  <td class="text-end blur-sensitive">R$ {{ instance.amount }}</td>
   <td>
     {% if instance.is_paid %}
       <span class="badge text-bg-success">Pago</span>

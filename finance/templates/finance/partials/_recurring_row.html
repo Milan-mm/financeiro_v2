@@ -1,7 +1,7 @@
 <tr>
   <td>{{ rule.description }}</td>
   <td>{{ rule.due_day }}</td>
-  <td>R$ {{ rule.amount }}</td>
+  <td class="blur-sensitive">R$ {{ rule.amount }}</td>
   <td>
     {% if rule.active %}
       <span class="badge text-bg-success">Ativa</span>
