@@ -1,3 +1,4 @@
+# core/webhook.py
 import logging
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
@@ -11,11 +12,9 @@ from core.utils_webhook import FinanceBot
 
 logger = logging.getLogger(__name__)
 
-
 # Helper para criar uma chave de cache única para cada remetente
 def get_user_state_key(sender):
     return f"twilio_user_state_{sender}"
-
 
 @csrf_exempt
 @require_POST
