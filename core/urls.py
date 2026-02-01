@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views
+from . import views, webhook
 
 urlpatterns = [
     path("", views.login_view, name="login"),
@@ -14,5 +14,5 @@ urlpatterns = [
     path("api/system-logs/", views.system_logs_api, name="system-logs-api"),
     path("api/system-logs/<int:log_id>/", views.system_log_detail_api, name="system-log-detail-api"),
     path("api/logs/pending-count/", views.system_logs_pending_count_api, name="system-logs-pending-count"),
-path('webhooks/twilio/', views.twilio_webhook, name='twilio_webhook'),
+    path('webhooks/twilio/', webhook.twilio_webhook, name='twilio_webhook'),
 ]
