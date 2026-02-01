@@ -901,14 +901,7 @@ def payables_generate(request):
         print(f"instances created for rule {rule.id}: {len(created)}")
         created_count += len(created)
 
-    installments_created = generate_future_installments_for_household(
-        request.household.id,
-        months_ahead,
-        start_month=date(year, month, 1),
-    )
-
-    total_created = created_count + installments_created
-    print("[PAYABLES_GENERATE] installments created:", installments_created)
+    total_created = created_count
     print("[PAYABLES_GENERATE] TOTAL CREATED:", total_created)
     messages.success(
         request,

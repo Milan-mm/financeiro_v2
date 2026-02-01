@@ -202,65 +202,6 @@ def generate_recurring_instances(rule: RecurringRule, months_ahead: int) -> list
     return instances
 
 
-def generate_future_installments_for_household(
-    household_id: int,
-    months_ahead: int,
-    start_month: date | None = None,
-) -> int:
-    print("\n[INSTALLMENTS_GENERATE]")
-    print("household:", household_id)
-    print("months_ahead:", months_ahead)
-
-    if months_ahead <= 0:
-        print("ABORT: months_ahead <= 0")
-        return 0
-
-    start_month = start_month or date(timezone.localdate().year, timezone.localdate().month, 1)
-    end_month = add_months(start_month, months_ahead)
-
-    print("start_month:", start_month)
-    print("end_month (exclusive):", end_month)
-
-    groups = CardPurchaseGroup.objects.filter(
-        household_id=household_id,
-        installments_count__gt=1,
-    )
-    print("installment groups found:", groups.count())
-
-    created_count = 0
-    for group in groups:
-        plan = installment_plan(group.total_amount, group.installments_count, group.first_due_date)
-        for idx, (amount, due_date) in enumerate(
-            zip(plan.amounts, plan.due_dates),
-            start=1,
-        ):
-            if due_date < start_month or due_date >= end_month:
-                continue
-            installment, created = Installment.objects.get_or_create(
-                household=group.household,
-                group=group,
-                number=idx,
-                defaults={
-                    "due_date": due_date,
-                    "statement_year": due_date.year,
-                    "statement_month": due_date.month,
-                    "amount": amount,
-                },
-            )
-            if created:
-                created_count += 1
-                print(
-                    "[INSTALLMENTS_GENERATE] created",
-                    f"group={group.id}",
-                    f"number={idx}",
-                    f"due={due_date}",
-                    f"installment_id={installment.id}",
-                )
-
-    print("[INSTALLMENTS_GENERATE] created:", created_count)
-    return created_count
-
-
 def pay_recurring_instance(instance: RecurringInstance) -> RecurringInstance:
     with transaction.atomic():
         instance = RecurringInstance.objects.select_for_update().get(pk=instance.pk)
