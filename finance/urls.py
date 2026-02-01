@@ -34,6 +34,7 @@ urlpatterns = [
     path("import/parse/", views.import_parse, name="import-parse"),
     path("import/<int:pk>/review/", views.import_review, name="import-review"),
     path("import/<int:pk>/confirm/", views.import_confirm, name="import-confirm"),
+    path("import/<int:pk>/cancel/", views.import_cancel, name="import-cancel"),
     path("investments/", views.investments_list, name="investments"),
     path("investments/summary/", views.investments_summary, name="investments-summary"),
     path("investments/accounts/new/", views.investment_account_create, name="investment-account-create"),

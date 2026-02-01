@@ -43,6 +43,57 @@
             </form>
           </div>
         </section>
+
+        {% if draft_batches %}
+          <section class="card border-0 shadow-sm mt-4">
+            <div class="card-header bg-light">
+              <h5 class="mb-0">Rascunhos de importação</h5>
+              <small class="text-muted">Importações não confirmadas. Clique para retomar ou deletar.</small>
+            </div>
+            <div class="card-body">
+              <div class="table-responsive">
+                <table class="table table-sm">
+                  <thead class="table-light">
+                    <tr>
+                      <th>Cartão</th>
+                      <th>Data importação</th>
+                      <th>Fatura</th>
+                      <th>Itens</th>
+                      <th>Ação</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for batch in draft_batches %}
+                      <tr>
+                        <td>{{ batch.card.name|default:"—" }}</td>
+                        <td>{{ batch.created_at|date:"d/m/Y H:i" }}</td>
+                        <td>
+                          {% if batch.statement_month and batch.statement_year %}
+                            {{ batch.statement_month }}/{{ batch.statement_year }}
+                          {% else %}
+                            —
+                          {% endif %}
+                        </td>
+                        <td>{{ batch.items.count }}</td>
+                        <td>
+                          <a href="{% url 'finance:import-review' batch.id %}" class="btn btn-sm btn-outline-primary">
+                            Retomar
+                          </a>
+                          <form method="post" action="{% url 'finance:import-cancel' batch.id %}" style="display: inline;">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Deletar este rascunho?')">
+                              Deletar
+                            </button>
+                          </form>
+                        </td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+        {% endif %}
       </div>
     </main>
   </div>

@@ -1085,7 +1085,17 @@ def import_start(request):
             "statement_month": today.month,
         },
     )
-    return render(request, "finance/import_start.html", {"form": form})
+    
+    # Lista drafts para permitir limpeza
+    draft_batches = ImportBatch.objects.filter(
+        household=request.household,
+        status=ImportBatch.Status.DRAFT
+    ).order_by("-created_at")
+    
+    return render(request, "finance/import_start.html", {
+        "form": form,
+        "draft_batches": draft_batches,
+    })
 
 
 @login_required
@@ -1446,6 +1456,26 @@ def import_confirm(request, pk):
         f"Importação confirmada. {created_installments_count} parcela(s) nova(s).",
     )
     return redirect("dashboard")
+
+
+@login_required
+@require_http_methods(["POST"])
+def import_cancel(request, pk):
+    """
+    Cancela e deleta um draft ImportBatch, limpando seus itens.
+    Evita acúmulo de drafts no banco de dados.
+    """
+    batch = get_object_or_404(ImportBatch, pk=pk, household=request.household)
+    
+    if batch.status == ImportBatch.Status.CONFIRMED:
+        messages.error(request, "Não é possível cancelar uma importação já confirmada.")
+        return redirect("dashboard")
+    
+    batch_id = batch.id
+    batch.delete()
+    
+    messages.success(request, "Importação cancelada e deletada.")
+    return redirect("finance:import-start")
 
 
 

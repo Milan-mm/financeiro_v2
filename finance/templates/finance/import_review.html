@@ -90,7 +90,15 @@
                 </table>
               </div>
 
-              <button type="submit" class="btn btn-primary">Confirmar importação</button>
+              <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">Confirmar importação</button>
+                <form method="post" action="{% url 'finance:import-cancel' batch.id %}" style="display: inline;">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-outline-danger" onclick="return confirm('Tem certeza que quer cancelar e deletar este rascunho?')">
+                    Cancelar importação
+                  </button>
+                </form>
+              </div>
             </form>
           </div>
         </section>
