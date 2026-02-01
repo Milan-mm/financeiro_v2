@@ -201,6 +201,7 @@ def generate_recurring_instances(rule: RecurringRule, months_ahead: int) -> list
     print("[RECURRING_GENERATE] created:", len(instances))
     return instances
 
+
 def pay_recurring_instance(instance: RecurringInstance) -> RecurringInstance:
     with transaction.atomic():
         instance = RecurringInstance.objects.select_for_update().get(pk=instance.pk)

@@ -48,6 +48,7 @@ from .models import (
 from .services import (
     generate_installments_for_group,
     generate_installments_from_statement,
+    generate_future_installments_for_household,
     generate_recurring_instances,
     installment_plan,
     pay_recurring_instance,
@@ -903,9 +904,12 @@ def payables_generate(request):
         print(f"instances created for rule {rule.id}: {len(created)}")
         created_count += len(created)
 
-    print("[PAYABLES_GENERATE] TOTAL CREATED:", created_count)
-
-    messages.success(request, f"{created_count} instância(s) gerada(s).")
+    total_created = created_count
+    print("[PAYABLES_GENERATE] TOTAL CREATED:", total_created)
+    messages.success(
+        request,
+        f"{total_created} instância(s) gerada(s).",
+    )
 
     context = _payables_context(request, year, month)
     return _render_partial(
@@ -1189,7 +1193,7 @@ def import_review(request, pk):
     print("[IMPORT_REVIEW] statement:", batch.statement_month, batch.statement_year)
     print("[IMPORT_REVIEW] items:", batch.items.count())
 
-    items = batch.items.all()
+    items = list(batch.items.all())
     logical_keys = [
         build_installment_logical_key(
             item.description,
