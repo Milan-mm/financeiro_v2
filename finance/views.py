@@ -14,7 +14,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
-from .billing import get_due_date, get_statement_window
+from .billing import get_due_date, get_statement_window, get_first_installment_due_date
 from .statement_importer import parse_statement_text
 from .forms import (
     AccountForm,
@@ -1382,6 +1382,15 @@ def import_confirm(request, pk):
                 ).first()
 
             if group is None:
+                # Calcula a data de vencimento esperada da PRIMEIRA parcela
+                # baseada na data da compra original, não na data de fechamento
+                # da fatura atual. Isso garante que parcelas antigas (ex: 4/6)
+                # tenham datas corretas quando geramos as futuras.
+                first_installment_date = get_first_installment_due_date(
+                    item.purchase_date,
+                    batch.card.closing_day,
+                )
+                
                 group = CardPurchaseGroup.objects.create(
                     household=request.household,
                     card=batch.card,
@@ -1389,7 +1398,7 @@ def import_confirm(request, pk):
                     logical_key=logical_key,
                     total_amount=total_amount,
                     installments_count=item.installments_total,
-                    first_due_date=closing_date,
+                    first_due_date=first_installment_date,
                     purchase_date=item.purchase_date,
                     statement_year=statement_year,
                     statement_month=statement_month,

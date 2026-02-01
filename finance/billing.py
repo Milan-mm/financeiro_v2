@@ -25,3 +25,35 @@ def get_statement_window(statement_year: int, statement_month: int, closing_day:
 
 def get_due_date(statement_year: int, statement_month: int, due_day: int) -> date:
     return normalize_day(statement_year, statement_month, due_day)
+
+
+def get_first_installment_due_date(
+    purchase_date: date,
+    closing_day: int,
+) -> date:
+    """
+    Calcula a data de vencimento esperada da PRIMEIRA parcela.
+    
+    Para uma compra em 25/09/2025 com parcelamento, a primeira parcela
+    deveria vencer no mês seguinte (outubro/2025) no mesmo dia de fechamento
+    do cartão.
+    
+    Args:
+        purchase_date: Data da compra original
+        closing_day: Dia de fechamento do cartão
+    
+    Returns:
+        Data de vencimento da primeira parcela
+    """
+    # Próximo mês após a compra
+    year = purchase_date.year
+    month = purchase_date.month + 1
+    if month > 12:
+        month = 1
+        year += 1
+    
+    # Primeira parcela vence no dia de fechamento do próximo mês
+    result = normalize_day(year, month, closing_day)
+    print(f"[GET_FIRST_INSTALLMENT_DUE_DATE] purchase={purchase_date}, closing_day={closing_day} -> first_due={result}")
+    return result
+

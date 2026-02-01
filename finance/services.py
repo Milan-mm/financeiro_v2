@@ -35,7 +35,10 @@ def add_months(start: date, months: int) -> date:
     year = start.year + total_month // 12
     month = total_month % 12 + 1
     day = min(start.day, last_day_of_month(year, month))
-    return date(year, month, day)
+    result = date(year, month, day)
+    if months > 0:  # Only log forward calculations
+        print(f"  [ADD_MONTHS] {start} + {months} months = {result} (day={start.day}, normalized={day})")
+    return result
 
 
 def installment_plan(total: Decimal, count: int, first_due: date) -> InstallmentPlan:
@@ -52,7 +55,13 @@ def installment_plan(total: Decimal, count: int, first_due: date) -> Installment
         idx += 1
         if idx >= count:
             idx = 0
+    
     due_dates = [add_months(first_due, i) for i in range(count)]
+    
+    print(f"[INSTALLMENT_PLAN] first_due={first_due}, count={count}")
+    for i, d in enumerate(due_dates, 1):
+        print(f"  installment {i}: {d}")
+    
     return InstallmentPlan(amounts=amounts, due_dates=due_dates)
 
 
@@ -136,12 +145,24 @@ def generate_future_installments_from_group(
     plan = installment_plan(group.total_amount, group.installments_count, group.first_due_date)
     created = []
     start_number = min(max(1, current_installment + 1), group.installments_count + 1)
+    
+    print(f"\n[GENERATE_FUTURE] group {group.id}")
+    print(f"  first_due_date: {group.first_due_date}")
+    print(f"  installments_count: {group.installments_count}")
+    print(f"  current_installment: {current_installment}")
+    print(f"  start_number: {start_number}")
+    print(f"  plan.due_dates: {plan.due_dates}")
+    
     for idx, (amount, due_date) in enumerate(
         zip(plan.amounts, plan.due_dates),
         start=1,
     ):
         if idx < start_number:
+            print(f"  [{idx}] SKIP (idx < start_number)")
             continue
+        
+        print(f"  [{idx}] CREATING - due_date={due_date}, amount={amount}")
+        
         installment, was_created = Installment.objects.get_or_create(
             household=group.household,
             group=group,
@@ -154,7 +175,12 @@ def generate_future_installments_from_group(
             },
         )
         if was_created:
+            print(f"    -> CREATED")
             created.append(installment)
+        else:
+            print(f"    -> ALREADY EXISTS")
+    
+    print(f"  Total created: {len(created)}\n")
     return created
 
 
